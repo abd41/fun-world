@@ -9,7 +9,8 @@ which proved nothing.
 Why Pydantic is excluded specifically: it is the tempting one. It validates
 nicely and looks harmless in an entity. But once entities carry `BaseModel`,
 the domain starts being shaped by what is convenient to serialise rather than
-by the rules it exists to hold. Serialisation belongs in presentation.
+by the rules it exists to hold. Schemas belong in `catalog.api` — there is no
+`presentation` package; that was the name in ADR-0016's diagram, not in code.
 """
 
 from __future__ import annotations
