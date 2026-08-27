@@ -1,0 +1,240 @@
+# ---------------------------------------------------------------------------
+# OWNERS.yml — the routing table for agent work.
+# 
+# THIS FILE IS OWNED BY A HUMAN. No agent may write to it, ever.
+# That is the property that makes everything else safe: an agent cannot
+# grant itself new paths, so its boundary cannot widen from the inside.
+# 
+# How routing works (see the build plan, §07):
+#   1. A work package declares the paths it touches, in the `Paths` field.
+#   2. Those paths are looked up here. Most-specific rule wins (CODEOWNERS
+#      semantics) — `apps/mobile/src/tv/**` beats `apps/mobile/**`.
+#   3. Exactly one owner  -> assign to that agent, deterministically.
+#      Two or more owners -> the ticket MUST be split, one child per owner.
+# 
+# No agent ever chooses a recipient. Assignment is a pure function of paths,
+# which is why hand-off loops cannot form.
+# ---------------------------------------------------------------------------
+
+version: 1
+
+# Hard limits enforced by op-cli, not by agent goodwill.
+limits:
+  max_children_per_split: 5   # fan-out cap
+  max_split_depth: 2          # a child may split once; a grandchild may not
+  max_handoff_count: 3        # above this: status -> On hold, assignee -> human
+
+# How a path resolves to an owner.
+#
+# TOP-DOWN, FIRST MATCH WINS — firewall semantics, deliberately NOT
+# "most specific wins". "Most specific" is undefined when two globs overlap:
+# `apps/api/catalog/tests/x.py` matches both api-agent's `apps/api/catalog/**`
+# and qa-agent's `**/tests/**`, and neither is obviously more specific.
+# An ordered list has exactly one answer, always.
+#
+# `precedence` is evaluated before `owners`. If nothing matches here, the
+# `owners` map below is consulted. If nothing matches there either, the path
+# is unowned and op-cli refuses the claim — silence is never permission.
+resolution: first-match
+
+precedence:
+
+  # 1. Human-only. Nothing below can override these.
+  #    OWNERS.yml is here so an agent can never widen its own boundary.
+  #    .claude/agents/** is here because an agent that could rewrite its own
+  #    definition would create drift between the boundary it believes in and
+  #    the boundary OWNERS.yml actually enforces. Regenerating them is a
+  #    deliberate human act: `pnpm agents:gen`.
+  #    specs/** is here because a spec is the thing a human approves; an agent
+  #    that could edit the spec could approve its own work.
+  - owner: HUMAN
+    paths:
+      - OWNERS.yml
+      - .specify/**
+      - .claude/**
+      - specs/**
+      - .env
+      - .env.*
+      - .gitignore
+      - package.json
+      - pnpm-workspace.yaml
+      - pnpm-lock.yaml
+      - turbo.json
+
+  # 2. The one carve-out inside infra/ — realm export is auth-agent's output.
+  #    Must precede the infra/** lock below.
+  - owner: auth-agent
+    paths:
+      - infra/keycloak/realm/**
+
+  # 3. Everything else under infra/ is container + network config: human-owned.
+  - owner: HUMAN
+    paths:
+      - infra/**
+
+  # 4. Tests belong to qa-agent wherever they live, overriding the app agent
+  #    who owns the surrounding directory. This is what stops an implementer
+  #    "fixing" a red test by editing the test.
+  - owner: qa-agent
+    paths:
+      - "**/tests/**"
+      - "**/__tests__/**"
+      - "**/*.spec.ts"
+      - "**/*.spec.tsx"
+      - e2e/**
+
+  # 5. TV screens override mobile-agent's broader claim on apps/mobile/**.
+  - owner: tv-agent
+    paths:
+      - apps/mobile/src/tv/**
+      - "apps/mobile/**/*.tv.*"
+
+# General map, consulted only when no precedence rule matched.
+owners:
+
+  contract-keeper:
+    lang: ts
+    writes:
+      - packages/contracts/**
+    reads: ["**"]
+    job: >
+      Regenerates packages/contracts from the API's OpenAPI 3.1 document and
+      guards the CI drift gate. The only agent that may touch generated types.
+
+  design-system:
+    lang: ts
+    writes:
+      - packages/tokens/**
+      - packages/ui-spec/**
+    reads: []
+    job: >
+      Owns the single token source and the component contracts that web,
+      mobile and TV each implement natively. No literal hex anywhere else.
+
+  data-agent:
+    lang: py
+    writes:
+      - apps/api/core/models.py
+      - apps/api/core/admin.py
+      - apps/api/**/migrations/**
+      - apps/api/fixtures/**
+    reads:
+      - packages/contracts/**
+    job: >
+      Models, migrations, seeds, Django admin registration. The only agent
+      that may write a migration.
+
+  api-agent:
+    lang: py
+    writes:
+      - apps/api/catalog/**
+      - apps/api/profiles/**
+      - apps/api/progress/**
+      - apps/api/search/**
+    reads:
+      - packages/contracts/**
+      - apps/api/core/**
+    job: Catalog, profiles, playback progress and search endpoints.
+
+  auth-agent:
+    lang: py
+    writes:
+      - apps/api/oauth/**
+      - infra/keycloak/realm/**   # realm export only; infra/** is otherwise protected
+    reads:
+      - packages/contracts/**
+      - apps/api/core/**
+    job: >
+      OAuth 2.1 — authorization code + PKCE, device grant (RFC 8628) for the
+      TVs, refresh rotation with family revocation, JWKS. Later the Keycloak realm.
+
+  web-agent:
+    lang: ts
+    writes:
+      - apps/web/**
+    reads:
+      - packages/contracts/**
+      - packages/tokens/**
+      - packages/ui-spec/**
+    job: Next.js 16 routes, server components, client islands. Also the webOS target.
+
+  mobile-agent:
+    lang: ts
+    writes:
+      - apps/mobile/**
+    reads:
+      - packages/contracts/**
+      - packages/tokens/**
+      - packages/ui-spec/**
+    job: Expo Router screens for phone. Excludes src/tv/** — see tv-agent.
+
+  tv-agent:
+    lang: ts
+    # More specific than mobile-agent's rule, so this wins for these paths.
+    # The TV is a build variant of the same Expo app, but a genuinely
+    # different interaction model: D-pad focus, 10-foot type, no hover.
+    writes:
+      - apps/mobile/src/tv/**
+      - apps/mobile/*.tv.*
+    reads:
+      - packages/contracts/**
+      - packages/tokens/**
+      - packages/ui-spec/**
+    job: Android TV / Fire TV / Google TV screens and focus management.
+
+  media-agent:
+    lang: both
+    writes:
+      - tools/media/**
+      - packages/player-core/**
+    reads:
+      - packages/contracts/**
+    job: ffmpeg HLS ladder, packaging, HMAC-signed playback URLs, player core.
+
+  qa-agent:
+    lang: both
+    # Deliberately cannot write src. It can therefore never "fix" a failing
+    # test by changing the code under test — it can only file a bug, which is
+    # what makes the qa -> implementer handoff one-way and loop-free.
+    writes:
+      - e2e/**
+      - apps/api/**/tests/**
+      - apps/web/**/__tests__/**
+      - apps/mobile/**/__tests__/**
+    reads: ["**"]
+    job: >
+      Writes tests and only tests. Files bugs against the owner of the failing
+      path. A bug MUST cite the spec acceptance criterion it violates — if it
+      cannot, it is a spec question and routes to the human instead.
+
+  op-agent:
+    lang: py
+    writes:
+      - tools/op-cli/**
+      - .github/**
+    reads:
+      - specs/**
+    job: >
+      Owns op-cli and keeps the OpenProject board in sync with reality.
+      Never writes application code.
+
+# ---------------------------------------------------------------------------
+# Board mapping — OpenProject custom fields (project: fun-world)
+#   customField1 Agent    customField2 Paths     customField3 Spec
+#   customField4 Handoff  customField5 Layer     customField6 Vertical
+#
+# Statuses reuse OpenProject defaults rather than inventing new ones:
+#   New -> backlog        In progress -> claimed    In testing -> qa checking
+#   Test failed -> the qa/implementer bug loop      On hold -> blocked, human
+#   Closed -> done        Rejected -> won't do
+# ---------------------------------------------------------------------------
+board:
+  url: http://localhost:8080
+  project: fun-world
+  fields:
+    agent: customField1
+    paths: customField2
+    spec: customField3
+    handoff_count: customField4
+    layer: customField5
+    vertical: customField6

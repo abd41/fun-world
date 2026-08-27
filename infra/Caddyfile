@@ -1,0 +1,16 @@
+:80 {
+	root * /srv
+	# Range requests matter: HLS players seek, and a server that ignores
+	# Range makes scrubbing re-download the whole segment.
+	file_server browse
+	header {
+		Access-Control-Allow-Origin "*"
+		Access-Control-Allow-Methods "GET, HEAD, OPTIONS"
+		Access-Control-Allow-Headers "Range"
+		Access-Control-Expose-Headers "Content-Length, Content-Range"
+	}
+	@segments path *.m4s *.ts *.mp4
+	header @segments Cache-Control "public, max-age=31536000, immutable"
+	@playlists path *.m3u8
+	header @playlists Cache-Control "no-cache"
+}

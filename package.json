@@ -1,0 +1,16 @@
+{
+  "name": "fun-world",
+  "private": true,
+  "packageManager": "pnpm@10.9.2",
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "agents:gen": "uv run --with pyyaml python tools/op-cli/gen_agents.py",
+    "agents:check": "uv run --with pyyaml python tools/op-cli/gen_agents.py --check",
+    "owners:test": "uv run --with pyyaml python tools/op-cli/test_resolve.py"
+  },
+  "devDependencies": { "turbo": "^2" }
+}

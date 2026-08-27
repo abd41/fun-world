@@ -1,0 +1,29 @@
+name: fun-world
+
+services:
+  db:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: funworld
+      POSTGRES_USER: funworld
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-funworld-dev}
+    # Bound to all interfaces: the phone and both TVs need to reach the API,
+    # and localhost resolves to the device itself on those. See constitution §7.
+    ports: ["5433:5432"]
+    volumes: ["fwdata:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U funworld -d funworld"]
+      interval: 5s
+      retries: 10
+
+  media:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports: ["8090:80"]
+    volumes:
+      - "../media/hls:/srv:ro"
+      - "./Caddyfile:/etc/caddy/Caddyfile:ro"
+
+volumes:
+  fwdata:
