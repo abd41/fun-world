@@ -59,10 +59,16 @@ precedence:
       - .env
       - .env.*
       - .gitignore
-      - package.json
-      - pnpm-workspace.yaml
-      - pnpm-lock.yaml
+      - package.json          # ROOT only — a root dep or the package manager
+      - pnpm-workspace.yaml   #   version is a project decision, not a task
       - turbo.json
+      # NOTE: pnpm-lock.yaml is deliberately NOT here. It is a derived
+      # artifact that changes whenever ANY workspace package adds a
+      # dependency, so locking it would block every agent that touches
+      # apps/web/package.json or apps/mobile/package.json -- which is most
+      # of them, most of the time. Like packages/contracts, the protection
+      # is "regenerate it, never hand-edit it", enforced by CI rather than
+      # by ownership.
 
   # 2. The one carve-out inside infra/ — realm export is auth-agent's output.
   #    Must precede the infra/** lock below.

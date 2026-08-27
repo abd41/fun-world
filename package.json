@@ -1,7 +1,7 @@
 {
   "name": "fun-world",
   "private": true,
-  "packageManager": "pnpm@10.9.2",
+  "packageManager": "pnpm@11.24.0",
   "scripts": {
     "dev": "turbo run dev",
     "build": "turbo run build",
