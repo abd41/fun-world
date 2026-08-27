@@ -20,6 +20,9 @@ spec-driven development, coordinated through self-hosted OpenProject.
   things run, how the code fits together, a playback request end to end, how
   work reaches an agent, and the content model. Renders on GitHub and in
   VS Code's Markdown preview.
+- **[`docs/adr/`](docs/adr/)** — Architecture Decision Records. *Why* the
+  system is like this, including the choices that were reversed and what
+  changed. Read before proposing a different approach.
 - **[`docs/build-plan.html`](docs/build-plan.html)** — the full plan: every
   decision, what it replaced and why, constraints, and build order. Open it in
   a browser; it is self-contained and needs no network.

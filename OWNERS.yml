@@ -5,12 +5,13 @@
 # That is the property that makes everything else safe: an agent cannot
 # grant itself new paths, so its boundary cannot widen from the inside.
 # 
-# How routing works (see the build plan, §07):
+# How routing works (see docs/ARCHITECTURE.md and ADR-0007):
 #   1. A work package declares the paths it touches, in the `Paths` field.
-#   2. Those paths are looked up here. Most-specific rule wins (CODEOWNERS
-#      semantics) — `apps/mobile/src/tv/**` beats `apps/mobile/**`.
+#   2. Those paths are resolved here, TOP-DOWN, FIRST MATCH WINS — see the
+#      `resolution` note below for why that beats "most specific wins".
 #   3. Exactly one owner  -> assign to that agent, deterministically.
 #      Two or more owners -> the ticket MUST be split, one child per owner.
+#      No owner at all    -> the claim is REFUSED. Silence is not permission.
 # 
 # No agent ever chooses a recipient. Assignment is a pure function of paths,
 # which is why hand-off loops cannot form.
@@ -53,6 +54,8 @@ precedence:
       - .specify/**
       - .claude/**
       - specs/**
+      - docs/adr/**
+      - docs/ARCHITECTURE.md
       - .env
       - .env.*
       - .gitignore
