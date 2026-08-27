@@ -162,6 +162,11 @@ touches human-owned paths by design (constitution §8, ADR-0007).
 
 - [ ] T018 [P] API tests — owner: **qa-agent** — paths: `apps/api/tests/`
   - `GET /api/titles` returns the seeded title; empty database returns `[]` and not 404
+  - **Assert the two `MAX_NAME_LENGTH` declarations agree.** `catalog.domain.title.MAX_NAME_LENGTH` and `core.models.Title.name.max_length` are deliberately duplicated — the domain states a rule, the ORM builds a column — and they live in two different agents' files. The comment says the domain wins if they diverge; nothing enforces it. One line closes that:
+    ```python
+    assert Title.MAX_NAME_LENGTH == ORMTitle._meta.get_field("name").max_length
+    ```
+  - **Assert ordering is not promised.** `core.models.Title.Meta.ordering` is set for the admin, while `contracts/titles.md` says ordering is unspecified. A client could observe stable ordering and come to depend on it. The test should assert the *contract's* silence, not the model's default
   - qa-agent cannot write `src` (§20), so it cannot make a failing test pass by changing the code under test
 
 - [ ] T019 [P] End-to-end check — owner: **qa-agent** — paths: `e2e/`
