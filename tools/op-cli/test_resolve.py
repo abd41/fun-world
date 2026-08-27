@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import sys
 
-from owners import HUMAN, UNOWNED, resolve, route
+from owners import HUMAN, SHARED, UNOWNED, resolve, route
 
 # (path, expected owner, why this case is here)
 CASES: list[tuple[str, str, str]] = [
@@ -45,7 +45,10 @@ CASES: list[tuple[str, str, str]] = [
     (".claude/agents/web-agent.md", HUMAN,
      "an agent rewriting its own definition would drift from what OWNERS enforces"),
     ("specs/004-identity/spec.md", HUMAN, "an agent that edits the spec approves its own work"),
-    ("package.json", HUMAN, "build config"),
+    ("package.json", HUMAN, "root build config is a project decision"),
+    ("pnpm-lock.yaml", SHARED,
+     "regenerated whenever ANY package adds a dep — a single owner would block everyone"),
+    ("uv.lock", SHARED, "same, for the Python side"),
     ("turbo.json", HUMAN, "build config"),
 ]
 

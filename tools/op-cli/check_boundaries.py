@@ -25,7 +25,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from owners import HUMAN, ROOT, UNOWNED, load, resolve  # noqa: E402
+from owners import HUMAN, ROOT, SHARED, UNOWNED, load, resolve  # noqa: E402
 
 HOOK = """#!/bin/sh
 # Fun World pre-commit -- generated, do not edit by hand.
@@ -94,7 +94,7 @@ def main() -> int:
     violations: list[tuple[str, str, str]] = []
     for f in files:
         r = resolve(f, cfg)
-        if r.owner == agent:
+        if r.owner in (agent, SHARED):
             continue
         if r.owner == HUMAN:
             reason = "human-owned — an agent may never write this"

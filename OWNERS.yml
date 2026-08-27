@@ -38,6 +38,25 @@ limits:
 # is unowned and op-cli refuses the claim — silence is never permission.
 resolution: first-match
 
+# Files that ANY agent may write, because they are regenerated as a side
+# effect of legitimate work rather than authored.
+#
+# This is a third category, and it exists because the first two do not fit.
+# `pnpm-lock.yaml` changes whenever any workspace package adds a dependency,
+# so a single owner would block almost every agent almost every time; and
+# leaving it UNOWNED refuses the claim, which is the same block with a worse
+# error message.
+#
+# Note the contrast with `packages/contracts`, which is ALSO generated but IS
+# owned: it has one deliberate regenerator (contract-keeper) and a CI gate.
+# The distinction is who regenerates it -- one agent on purpose, or any agent
+# incidentally. Only the latter belongs here.
+#
+# The protection for these is regenerate-never-hand-edit, checked in CI.
+shared_generated:
+  - pnpm-lock.yaml
+  - uv.lock
+
 precedence:
 
   # 1. Human-only. Nothing below can override these.
