@@ -26,8 +26,8 @@ router = Router(tags=["catalog"])
 class TitleOut(Schema):
     """One title, as clients see it.
 
-    `created_at` is deliberately absent. It exists on the model for provenance
-    and idempotent seeding, and no client needs it — a field in the contract is
+    `created_at` is deliberately absent. It exists on the model for provenance,
+    and no client needs it — a field in the contract is
     a field two clients can come to depend on, and removing it later is a
     breaking change made for no reason.
     """
@@ -40,8 +40,14 @@ class TitleOut(Schema):
 def list_all(request) -> list[TitleOut]:
     """Every title in the catalog.
 
-    No pagination, filtering or ordering — those are vertical 003 concerns, and
-    the contract explicitly promises nothing about order.
+    No pagination or filtering — vertical 003 concerns.
+
+    Rows do arrive ordered, because `core.models.Title.Meta.ordering` is set for
+    the admin's benefit, so the SQL carries `ORDER BY created_at DESC`. The
+    contract still promises nothing about order, and that is deliberate: a
+    client must not come to depend on an ordering that exists as a side effect
+    of an admin convenience. T018 tests the contract's silence, not this
+    default.
 
     An empty catalog returns `[]` with 200, never 404. That is what makes FR-008
     satisfiable: "no titles" has to be a *success* so a client can distinguish
