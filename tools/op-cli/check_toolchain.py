@@ -95,9 +95,15 @@ def main() -> int:
 
     if args.phase:
         print(f"\nphase {args.phase} toolchain complete")
-    else:
-        print("\n(no --phase given, nothing treated as blocking)")
-    return 0
+        return 0
+
+    # No --phase means nothing was treated as blocking, so exiting 0 would be a
+    # guard that always passes. Wiring this into CI without --phase would look
+    # like a check and be a no-op -- the same failure that left the layering
+    # contract green and inert for its whole life.
+    print("\nSURVEY ONLY — nothing was treated as blocking.", file=sys.stderr)
+    print("Pass --phase N to make missing tools fail.", file=sys.stderr)
+    return 2
 
 
 if __name__ == "__main__":
