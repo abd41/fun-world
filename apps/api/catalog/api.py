@@ -36,7 +36,18 @@ class TitleOut(Schema):
     name: str
 
 
-@router.get("", response=list[TitleOut], summary="List every title")
+@router.get(
+    "",
+    response=list[TitleOut],
+    summary="List every title",
+    # Pinned, not derived. django-ninja defaults operation_id to the Python
+    # path -- this one was `catalog_api_list_all`, which hey-api turned into a
+    # client function named `catalogApiListAll`. That makes the module layout
+    # part of the published contract: renaming this file or moving the function
+    # would rename the function both clients call, so a pure refactor becomes a
+    # breaking change with no diff in behaviour to explain it.
+    operation_id="listTitles",
+)
 def list_all(request) -> list[TitleOut]:
     """Every title in the catalog.
 

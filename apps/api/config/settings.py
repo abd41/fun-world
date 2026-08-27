@@ -78,6 +78,20 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    # --- Third party ---
+    #
+    # django-ninja is listed purely so its `export_openapi_schema` management
+    # command is discoverable. The API itself works without it -- NinjaAPI is
+    # instantiated in urls.py, not through the app registry.
+    #
+    # That command is what makes the contract pipeline provable offline:
+    # it reads the router definitions and writes the schema without touching
+    # the database or binding a port, so CI can regenerate and diff without
+    # standing up Postgres. Generating from a live URL instead would make the
+    # drift gate depend on a running server, which is exactly the kind of
+    # conditional guard that has already gone green while enforcing nothing
+    # here more than once.
+    "ninja",
     # --- Fun World apps ---
     #
     # Registering an app is a human step: this file is HUMAN-owned, so

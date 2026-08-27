@@ -41,14 +41,19 @@ api = NinjaAPI(
 api.add_router("/titles", catalog_router)
 
 
-@api.get("/health", tags=["meta"])
+@api.get("/health", tags=["meta"], operation_id="health")
 def health(request) -> dict:
     """Cheapest possible proof the API is up and reachable.
 
-    `scripts/setup` and the clean-runner CI job both poll this, so the scaffold
-    is verifiable before any feature endpoint exists. It also gives the phone a
-    way to distinguish "cannot reach the server" from "server is up but has no
-    titles" — the two states FR-008 requires be told apart.
+    Gives a client a way to distinguish "cannot reach the server" from "server
+    is up but has no titles" — the two states FR-008 requires be told apart.
+
+    This docstring is published: django-ninja puts it in `openapi.json`, which
+    puts it in `sdk.gen.ts`, which both clients read. It previously claimed
+    `scripts/setup` and the clean-runner CI job "both poll this". Neither does
+    — setup makes no HTTP call at all, and the workflow polls `/healthz` below.
+    The line was wrong when written and this change is the first thing that
+    would have shipped it to a client.
     """
     return {"status": "ok"}
 

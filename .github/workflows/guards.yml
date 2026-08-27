@@ -59,3 +59,71 @@ jobs:
         #
         # Judgement calls are deliberately NOT here. They need a reader.
         run: uv run python tools/op-cli/check_constitution.py
+
+  contracts:
+    name: Contracts match the API
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Regenerate and diff (constitution 13)
+        # No `if:` guard on the package existing. That conditional is how the
+        # layering job spent its entire life reporting success while checking
+        # nothing, and how check_drift printed "consistent across every
+        # surface" having never looked at one of them. If the package is
+        # missing, this job must go red.
+        #
+        # The env below is what Django needs to *load settings*, not to reach
+        # a database. export_openapi_schema reads the routers through the app
+        # registry and opens no socket, which is the whole reason the schema
+        # comes from a file instead of a running server -- so no Postgres
+        # service is needed here, and the DATABASE_URL is never connected to.
+        env:
+          DJANGO_SECRET_KEY: ci-only-never-used-to-sign-anything
+          DATABASE_URL: postgres://unused:unused@127.0.0.1:1/unused
+        run: |
+          # `pnpm --filter <name>` exits 0 when the filter matches NOTHING.
+          # Verified against pnpm 11.24.0: it prints "No projects matched the
+          # filters" and returns success. So if the package name ever drifts
+          # from the filter string, generation silently would not run, the
+          # diff would be empty, and this step would print "Contracts match
+          # the API" having generated nothing -- the exact failure the comment
+          # above says this job exists to prevent, reintroduced by the command
+          # used to prevent it. Found by review, not by inspection.
+          #
+          # `--dir` fails loudly on a missing directory, and `pnpm run` fails
+          # on a missing script.
+          pnpm --dir packages/contracts run generate
+
+          # Positive assertion, independent of how generation was invoked. A
+          # gate that only checks "nothing changed" cannot tell success from
+          # a no-op, and every silent guard in this repo has been exactly
+          # that shape.
+          for f in packages/contracts/openapi.json packages/contracts/src/index.ts                    packages/contracts/src/types.gen.ts packages/contracts/src/sdk.gen.ts; do
+            test -s "$f" || { echo "::error::$f missing or empty after generation"; exit 1; }
+          done
+
+          # `git diff --exit-code` alone is not enough: it compares tracked
+          # files and says nothing about a *new* file the generator emitted.
+          # Staging first makes additions and deletions visible too, so a new
+          # endpoint that nobody regenerated fails here rather than arriving
+          # as a 404 on a television.
+          git add --all -- packages/contracts
+          if ! git diff --cached --quiet -- packages/contracts; then
+            echo "::error::packages/contracts is out of date. Run: pnpm --dir packages/contracts run generate"
+            git diff --cached --stat -- packages/contracts
+            git diff --cached -- packages/contracts | head -200
+            exit 1
+          fi
+          echo "Contracts match the API."
+
+      - name: The generated client typechecks
+        # `typecheck` existed in package.json and no workflow ran it, which is
+        # the same "declared but never executed" shape as the rest.
+        run: pnpm --dir packages/contracts run typecheck
