@@ -45,13 +45,34 @@ pnpm agents:gen      # regenerate .claude/agents/*.md from OWNERS.yml
 pnpm agents:check    # fail if they have drifted
 ```
 
-A pre-commit hook enforces boundaries. Agents commit with `FW_AGENT` set;
-human commits are unrestricted.
+Boundaries are enforced in three layers (ADR-0007). Agents commit with
+`FW_AGENT` set; human commits are unrestricted.
 
 ```bash
 FW_AGENT=web-agent git commit -m "..."   # checked against OWNERS.yml
 git commit -m "..."                       # human, unrestricted
 ```
+
+| layer | where | catches |
+|---|---|---|
+| 1 | the agent's own definition | honest mistakes |
+| 2 | pre-commit hook | everything else on this machine |
+| 3 | `boundaries` job in CI | a layer-2 bypass — `--no-verify`, or a clone without hooks |
+
+`FW_AGENT` is recorded as an `FW-Agent:` commit trailer by a
+`prepare-commit-msg` hook, which is what lets layer 3 check a commit after the
+fact. Without it the acting agent is unrecoverable: every agent commits as the
+same GitHub account, so authorship separates agent from human and nothing
+finer. Install the hooks with:
+
+```bash
+python tools/op-cli/check_boundaries.py --install
+```
+
+`.github/CODEOWNERS` is generated from `OWNERS.yml` (`gen_codeowners.py`) and
+puts a human reviewer on paths no agent may write. It requests review; it does
+not block a merge — there is no branch protection on a private repo on the
+free tier. The CI job is the half that fails the build.
 
 ## Local stack
 
