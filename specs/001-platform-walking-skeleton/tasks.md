@@ -149,6 +149,11 @@ touches human-owned paths by design (constitution §8, ADR-0007).
 - [ ] T016 [US3] Contract drift gate in CI — owner: **op-agent** — paths: `.github/workflows/guards.yml`
   - Regenerate contracts, `git diff --exit-code`
   - Satisfies SC-003: regeneration with no change produces nothing to commit
+  - **Delivered early, inside PR #15 (T011/OP#65), not by op-agent.** The
+    `contracts` job in `guards.yml` is this task. Recorded here so the next
+    reader does not implement it twice. The board carries the same note on
+    OP#70. `git diff --exit-code` alone turned out to be insufficient — it
+    says nothing about a *newly emitted* file, so the job stages first.
 
 - [ ] T017 [US3] Prove the contract bites — owner: **qa-agent** — paths: `apps/api/tests/`, `e2e/`
   - A test asserting the response shape matches the contract, so a rename fails a test rather than only failing a typecheck someone might skip
