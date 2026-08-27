@@ -396,33 +396,115 @@ def cmd_bug(c: Client, a) -> int:
     return 0
 
 
+TASK_RE = re.compile(r"^\s*[-*]\s*\[([ xX])\]\s*(T\d+)\s+(.*?)\s*$")
+OWNER_RE = re.compile(r"owner:\s*\*\*([A-Za-z-]+)\*\*")
+PATHS_RE = re.compile(r"paths:\s*(.+?)(?:\s*$)")
+
+
+def parse_task(line: str) -> dict | None:
+    """Parse one task line of the form:
+
+        - [ ] T005 [P] [US1] Description — owner: **data-agent** — paths: `a`, `b`
+
+    Returns None for anything that is not a task line. Deliberately strict:
+    a line that looks like a task but cannot be parsed should be reported, not
+    silently turned into a ticket nobody can claim.
+    """
+    m = TASK_RE.match(line)
+    if not m:
+        return None
+    done, tid, rest = m.group(1).strip().lower() == "x", m.group(2), m.group(3)
+
+    owner = None
+    if om := OWNER_RE.search(rest):
+        owner = om.group(1)
+
+    paths: list[str] = []
+    if pm := PATHS_RE.search(rest):
+        # Everything after `paths:` — take the backticked entries, which is how
+        # every path in tasks.md is written.
+        paths = re.findall(r"`([^`]+)`", pm.group(1))
+
+    # The description is what precedes the first ` — owner:` marker.
+    desc = re.split(r"\s+—\s+owner:", rest)[0]
+    desc = re.sub(r"\*\*(.+?)\*\*", r"\1", desc)          # drop bold
+    desc = re.sub(r"\s+", " ", desc).strip()
+
+    story = None
+    if sm := re.search(r"\[(US\d+)\]", rest):
+        story = sm.group(1)
+
+    return {"id": tid, "done": done, "subject": f"{tid} {desc}",
+            "owner": owner, "paths": paths, "story": story}
+
+
 def cmd_sync(c: Client, a) -> int:
-    """Read a Spec Kit tasks.md into work packages. One source of truth: no
-    GitHub Issues mirror, because two ticket systems drift apart."""
+    """Read a Spec Kit tasks.md into work packages.
+
+    One source of truth: no GitHub Issues mirror, because two ticket systems
+    drift apart (ADR-0009). Sets Agent and Paths from the task line so the
+    ticket is claimable immediately -- a ticket without Paths cannot be
+    claimed at all, so importing one is worse than not importing it.
+    """
     md = Path(a.tasks)
     if not md.exists():
         die(f"no such file: {md}")
     spec_dir = md.parent.name
+    cfg = load()
+
+    parsed, malformed = [], []
+    for line in md.read_text(encoding="utf-8").splitlines():
+        if not TASK_RE.match(line):
+            continue
+        t = parse_task(line)
+        is_agent = bool(t["owner"]) and t["owner"] != "HUMAN"
+        if is_agent and t["owner"] not in cfg["owners"]:
+            malformed.append(f"{t['id']}: owner '{t['owner']}' is not in OWNERS.yml")
+        elif is_agent and not t["paths"] and not a.allow_unrouted:
+            # Only agent tasks need paths. A human never claims through op-cli,
+            # so a path-less verification task assigned to a person is fine --
+            # refusing it would just mean it never reaches the board at all.
+            malformed.append(f"{t['id']}: assigned to an agent but has no paths — unclaimable")
+        else:
+            parsed.append(t)
+
+    if malformed:
+        print("Refusing to sync — these tasks would create tickets nobody can work:\n", file=sys.stderr)
+        for m in malformed:
+            print(f"  {m}", file=sys.stderr)
+        print("\n  Fix tasks.md, or pass --allow-unrouted to import them anyway.", file=sys.stderr)
+        return 1
+
     existing = {w["subject"] for w in c.query([])}
     made = skipped = 0
-    for line in md.read_text(encoding="utf-8").splitlines():
-        m = re.match(r"^\s*[-*]\s*\[([ xX])\]\s*(.+?)\s*$", line)
-        if not m:
-            continue
-        subject = re.sub(r"\s+", " ", m.group(2))
-        if subject in existing:
+    for t in parsed:
+        if t["subject"] in existing:
             skipped += 1
             continue
-        body = {"subject": subject, SPEC: f"specs/{spec_dir}/spec.md",
-                "_links": {"type": {"href": f"/api/v3/types/{TYPE['task']}"}}}
-        if pm := re.search(r"`([^`]+)`", subject):
-            body[PATHS] = text_field(pm.group(1))
+        body = {
+            "subject": t["subject"],
+            SPEC: f"specs/{spec_dir}/spec.md",
+            PATHS: text_field("\n".join(t["paths"])),
+            "_links": {"type": {"href": f"/api/v3/types/{TYPE['task']}"}},
+        }
+        if a.parent:
+            body["_links"]["parent"] = {"href": f"/api/v3/work_packages/{a.parent}"}
+        # Route on the declared owner, but only if OWNERS.yml agrees -- the task
+        # list is a claim, and the routing table is the authority.
+        if t["owner"] and t["owner"] != "HUMAN":
+            resolved = set(route(t["paths"], cfg))
+            if resolved == {t["owner"]}:
+                if href := c.option_href(AGENT, t["owner"], TYPE["task"]):
+                    body["_links"][AGENT] = {"href": href}
+            else:
+                print(f"  ! {t['id']} says {t['owner']} but paths resolve to "
+                      f"{', '.join(sorted(resolved))} — left unassigned")
         wp = c.create_wp(body)
         made += 1
-        print(f"  #{wp['id']} {subject}")
+        who = t["owner"] or "-"
+        print(f"  #{wp['id']:<4} [{who:<15}] {t['subject'][:58]}")
+
     print(f"\nsynced {md}: {made} created, {skipped} already present")
-    if made:
-        print("Set Paths on any ticket that lacks them — without paths they cannot be claimed.")
     return 0
 
 
@@ -452,7 +534,11 @@ def build_parser() -> argparse.ArgumentParser:
     s = sub.add_parser("next"); s.add_argument("--agent", required=True); s.set_defaults(fn=cmd_next)
     s = sub.add_parser("close"); s.add_argument("--wp", type=int, required=True)
     s.add_argument("--pr", type=int, required=True); s.set_defaults(fn=cmd_close)
-    s = sub.add_parser("sync"); s.add_argument("tasks"); s.set_defaults(fn=cmd_sync)
+    s = sub.add_parser("sync"); s.add_argument("tasks")
+    s.add_argument("--parent", type=int, help="epic id to nest the tasks under")
+    s.add_argument("--allow-unrouted", action="store_true",
+                   help="import tasks with no paths (they cannot be claimed)")
+    s.set_defaults(fn=cmd_sync)
     return p
 
 
