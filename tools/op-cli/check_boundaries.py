@@ -36,6 +36,7 @@ set -e
 ROOT="$(git rev-parse --show-toplevel)"
 uv run --with pyyaml python "$ROOT/tools/op-cli/check_drift.py" --offline
 uv run --with pyyaml python "$ROOT/tools/op-cli/check_boundaries.py"
+uv run python "$ROOT/tools/op-cli/check_constitution.py" --staged
 """
 
 

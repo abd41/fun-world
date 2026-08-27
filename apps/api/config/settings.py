@@ -45,14 +45,19 @@ FW_HOST = env("FW_HOST")
 ALLOWED_HOSTS = ["localhost", "127.0.0.1", FW_HOST]
 
 # The clients are served from other origins on the same network, so CORS is
-# unavoidable here. It is scoped to the two client ports on FW_HOST rather than
-# opened wide — this is a home network, not a public API, and "*" would outlive
-# the moment of convenience that introduced it.
+# unavoidable here. It is scoped to the client ports on each allowed host
+# rather than opened wide — this is a home network, not a public API, and "*"
+# would outlive the moment of convenience that introduced it.
+#
+# Built from ALLOWED_HOSTS rather than listing localhost separately. The
+# earlier version hardcoded "http://localhost:3000" and "http://localhost:8081"
+# alongside the FW_HOST entries, which check_constitution.py flagged as a §7
+# violation — correctly. They were harmless in effect, since the FW_HOST
+# entries were also present, but §7 says every URL comes from configuration and
+# a rule with a comfortable exception is a rule that grows more of them.
+CLIENT_PORTS = (3000, 8081)
 CORS_ALLOWED_ORIGINS = [
-    f"http://{FW_HOST}:3000",
-    f"http://{FW_HOST}:8081",
-    "http://localhost:3000",
-    "http://localhost:8081",
+    f"http://{host}:{port}" for host in ALLOWED_HOSTS for port in CLIENT_PORTS
 ]
 
 # --- applications -----------------------------------------------------------
