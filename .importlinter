@@ -2,57 +2,96 @@
 ;
 ; Dependencies point INWARD. domain depends on nothing.
 ;
-; Run:  uv run --with import-linter lint-imports
-; CI runs this on every pull request, so the rule is enforced rather than
-; merely documented. A layering rule that is only written down erodes.
+; Run from apps/api:  uv run --with import-linter lint-imports --config ../../.importlinter
 ;
-; These contracts pass trivially until apps/api exists. That is deliberate:
-; the rule is in place BEFORE the code, because retrofitting layers after
-; views.py already imports the ORM is a rewrite, not a refactor.
+; NOTE ON PACKAGE NAMES. This file originally declared `root_packages = app`,
+; a name guessed before any code existed. Nothing was ever called `app`, so
+; import-linter exited with "could not find package" — and the CI job guarded
+; on `if [ -d apps/api/app ]`, which was never true, so it skipped silently and
+; reported success. The contract was green and enforcing nothing for its whole
+; life. Fixed once real modules existed and the mismatch became visible.
 
 [importlinter]
 root_packages =
-    app
+    catalog
+    core
+    config
 include_external_packages = True
+; `config` is the Django project package -- settings, urls, wsgi. It was absent
+; from this list, so it was invisible to every contract: catalog.domain could
+; `import config.settings`, and through it django, environ and the entire
+; settings module, while all four contracts still reported KEPT. Verified by
+; adding that import and watching nothing complain.
+;
+; A layering contract that cannot see a package cannot constrain imports of it.
 
 [importlinter:contract:onion]
-name = Onion layers: dependencies point inward
+name = Onion layers within catalog: dependencies point inward
 type = layers
 layers =
-    app.presentation
-    app.infrastructure
-    app.application
-    app.domain
+    (catalog.api)
+    (catalog.infrastructure)
+    catalog.application
+    catalog.domain
 ; Read top-to-bottom as outermost-to-innermost. import-linter forbids a lower
 ; layer importing a higher one, which is exactly the inward-only rule.
+;
+; Parentheses mark a layer as OPTIONAL. catalog.api arrives in T010 and
+; catalog.infrastructure with the concrete repository; without the parentheses
+; import-linter fails with "module does not exist" and the whole contract stops
+; running — which is how a guard ends up disabled to unblock someone, and then
+; stays disabled. The layers that exist are still enforced against each other.
 
 [importlinter:contract:domain-is-pure]
-name = domain/ imports no framework
+name = catalog.domain imports no framework
 type = forbidden
 ; NOTE ON `pydantic` BELOW — it is forbidden deliberately, not by oversight.
 ; It is the tempting one: it validates nicely and feels harmless in an entity.
 ; But it drags a serialisation concern into the one layer that should be plain
 ; Python, and once entities carry BaseModel the domain is shaped by what is
-; convenient to serialise. Schemas belong in presentation/.
+; convenient to serialise. Schemas belong in catalog.api.
 ; django, ninja, requests and httpx are the obvious ones: framework, HTTP.
 source_modules =
-    app.domain
+    catalog.domain
 forbidden_modules =
     django
     ninja
     pydantic
     requests
     httpx
+    config
+
+[importlinter:contract:domain-does-not-know-the-orm]
+name = catalog.domain does not import the ORM app
+type = forbidden
+; `core` is the Django app holding the ORM models. The domain must not reach
+; for it: that would be the inner layer depending on the outer one, which is
+; the single rule the whole pattern exists to enforce. Mapping between them is
+; infrastructure's job, and its cost is the price of the boundary.
+source_modules =
+    catalog.domain
+forbidden_modules =
+    core
 
 [importlinter:contract:application-is-framework-free]
-name = application/ orchestrates without a framework
+name = catalog.application orchestrates without a framework
 type = forbidden
+; This started as "forbid django.http and django.shortcuts, allow the ORM",
+; on the reasoning that Django models leak through repository return types and
+; pretending otherwise produces mapping code nobody maintains.
+;
+; import-linter refused it: subpackages of external packages cannot be
+; forbidden, only whole packages. The tool forced a decision instead of a
+; compromise — and the stricter answer turned out to be the better one.
+;
+; catalog.application defines the TitleRepository Protocol and depends on the
+; domain. The CONCRETE repository lives in catalog.infrastructure, which may
+; import django and core freely. So the application layer never needs Django
+; at all, and the leak the compromise was designed around does not exist.
 source_modules =
-    app.application
+    catalog.application
 forbidden_modules =
-    django.http
-    django.shortcuts
+    django
     ninja
-; The ORM is not forbidden outright here: Django models leak through
-; repository return types in practice, and pretending otherwise produces
-; mapping code nobody maintains. HTTP, however, has no business this far in.
+    core
+    config

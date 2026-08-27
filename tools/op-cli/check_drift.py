@@ -82,19 +82,37 @@ def check_routing() -> list[str]:
     return ["routing tests failed:"] + [f"  {ln}" for ln in failed]
 
 
+class Skipped(Exception):
+    """This check could not run. NOT the same as passing."""
+
+
 def check_board(cfg: dict) -> list[str]:
-    """Board Agent options match OWNERS.yml. Skipped when OpenProject is down --
-    an unreachable board must not block a commit made on a train."""
+    """Board Agent options match OWNERS.yml.
+
+    Skipped only when OpenProject is genuinely unreachable -- an unreachable
+    board must not block a commit made on a train.
+
+    It is NOT skipped when the board answers and rejects us. A wrong API key is
+    a real failure, and the earlier version caught every exception alike, so a
+    bad key printed "skipped" and "ok" on the same line. That is the exact shape
+    of the import-linter bug: a check reporting success while doing nothing.
+    """
     try:
-        from client import TYPE, Client
+        from client import ApiError, TYPE, Client
         c = Client()
         allowed = set(c.allowed_values("customField1", TYPE["task"]))
     except SystemExit as e:
-        print(f"  board check skipped: {str(e).splitlines()[0]}")
-        return []
+        # No credentials configured at all, or the host does not resolve.
+        raise Skipped(str(e).splitlines()[0]) from e
+    except ApiError as e:
+        if e.status in (401, 403):
+            # The board answered and refused us. That is a broken setup, not an
+            # absent one, and it must be loud.
+            return [f"OpenProject rejected the credentials (HTTP {e.status}) — "
+                    "the board check cannot run, and a bad key is not a skip"]
+        raise Skipped(f"HTTP {e.status}") from e
     except Exception as e:  # noqa: BLE001
-        print(f"  board check skipped: {type(e).__name__}")
-        return []
+        raise Skipped(type(e).__name__) from e
 
     owners = set(cfg["owners"])
     problems = []
@@ -111,18 +129,39 @@ def main() -> int:
     cfg = load()
     offline = "--offline" in sys.argv
 
+    # The board check is ALWAYS in this list. It used to be appended only when
+    # `not offline`, which meant --offline removed it entirely: `skipped` stayed
+    # empty, the summary block was never reached, and the run printed "no drift
+    # — consistent across every surface" having never looked at one of them.
+    # Both callers pass --offline, so that was every automated run.
+    #
+    # An omitted check and a skipped check are the same lie told differently.
+    # Now it always runs and always reports; --offline only says the skip is
+    # expected, which changes the exit code, not the honesty of the output.
+    def board_check() -> list[str]:
+        if offline:
+            raise Skipped("--offline was passed")
+        return check_board(cfg)
+
     checks = [
         ("agent roster matches OWNERS.yml", lambda: check_agent_roster(cfg)),
         ("agent definitions state their real paths", lambda: check_agent_content(cfg)),
         ("definitions match a fresh generation", check_regenerates_clean),
         ("routing resolves as intended", check_routing),
+        ("board Agent field matches OWNERS.yml", board_check),
     ]
-    if not offline:
-        checks.append(("board Agent field matches OWNERS.yml", lambda: check_board(cfg)))
 
     failures: list[str] = []
+    skipped: list[str] = []
     for label, fn in checks:
-        problems = fn()
+        try:
+            problems = fn()
+        except Skipped as why:
+            # A skip is reported as a skip, never as "ok". Conflating them is
+            # how a guard ends up green and inert.
+            skipped.append(f"{label} — {why}")
+            print(f"  SKIP {label}  ({why})")
+            continue
         print(f"  {'ok  ' if not problems else 'FAIL'} {label}")
         failures.extend(problems)
 
@@ -138,6 +177,22 @@ def main() -> int:
             file=sys.stderr,
         )
         return 1
+
+    if skipped:
+        # Never claim "no drift" when a surface was not examined. The summary
+        # states exactly what was checked, so a green run cannot be mistaken for
+        # a complete one.
+        print(f"\nno drift in {len(checks) - len(skipped)} of {len(checks)} checks — "
+              f"{len(skipped)} SKIPPED, so this is not a clean bill of health:")
+        for s in skipped:
+            print(f"    {s}")
+        if not offline:
+            # --offline is an explicit statement that the board is unreachable
+            # and that is expected. Without it, a skip is a surprise and should
+            # not pass silently.
+            print("\n  Re-run with --offline if that is expected.", file=sys.stderr)
+            return 1
+        return 0
 
     print(f"\nno drift — {len(cfg['owners'])} agents consistent across every surface")
     return 0

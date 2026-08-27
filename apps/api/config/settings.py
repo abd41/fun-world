@@ -45,14 +45,28 @@ FW_HOST = env("FW_HOST")
 ALLOWED_HOSTS = ["localhost", "127.0.0.1", FW_HOST]
 
 # The clients are served from other origins on the same network, so CORS is
-# unavoidable here. It is scoped to the two client ports on FW_HOST rather than
-# opened wide — this is a home network, not a public API, and "*" would outlive
-# the moment of convenience that introduced it.
+# unavoidable here. It is scoped to the client ports on each allowed host
+# rather than opened wide — this is a home network, not a public API, and "*"
+# would outlive the moment of convenience that introduced it.
+#
+# Derived from ALLOWED_HOSTS rather than listing origins separately, so the two
+# lists cannot drift apart.
+#
+# Be precise about what this did and did not fix. It removed duplicated origin
+# STRINGS; it did not remove the literals. "localhost" and "127.0.0.1" are still
+# written above, and are now interpolated into these origins — the same two
+# addresses, one line further up. check_constitution.py stopped reporting it
+# only because its regex matches a scheme followed by a literal host, and the
+# f-string no longer looks like one.
+#
+# They are kept deliberately: they are loopback aliases for this machine's own
+# browser, not an address the app dials out to, and §7 exists so that a device
+# which is NOT this machine can reach the API. FW_HOST covers that. Recording
+# it here because the previous comment claimed a fix it had not delivered, and
+# an overclaiming comment is worse than none — it stops the next reader looking.
+CLIENT_PORTS = (3000, 8081)
 CORS_ALLOWED_ORIGINS = [
-    f"http://{FW_HOST}:3000",
-    f"http://{FW_HOST}:8081",
-    "http://localhost:3000",
-    "http://localhost:8081",
+    f"http://{host}:{port}" for host in ALLOWED_HOSTS for port in CLIENT_PORTS
 ]
 
 # --- applications -----------------------------------------------------------

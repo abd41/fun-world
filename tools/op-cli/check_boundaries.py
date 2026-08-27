@@ -10,8 +10,13 @@ Who is acting is read from FW_AGENT. With no FW_AGENT set, the commit is
 treated as a human commit and allowed -- a person may write anywhere. That is
 deliberate: this guard constrains agents, not you.
 
-    FW_AGENT=web-agent git commit -m "..."      # checked
+    FW_AGENT=web-agent git commit -m "..."      # checked against the allowlist
     git commit -m "..."                          # human, unrestricted
+
+ONE EXCEPTION. If the commit is authored as the agent account (GH_AGENT_USER)
+and FW_AGENT is unset, it is REFUSED rather than treated as human -- that is an
+agent that forgot the variable, and waving it through would let it write
+anywhere. Committing under your own identity is unaffected.
 
 Install:  python tools/op-cli/check_boundaries.py --install
 Manual:   FW_AGENT=web-agent python tools/op-cli/check_boundaries.py
@@ -29,14 +34,50 @@ from owners import HUMAN, ROOT, SHARED, UNOWNED, load, resolve  # noqa: E402
 
 HOOK = """#!/bin/sh
 # Fun World pre-commit -- generated, do not edit by hand.
-# Two guards, both cheap, each catching a class of silent failure:
-#   1. drift  -- OWNERS.yml vs what agents believe and what routing enforces
-#   2. bounds -- did the acting agent write outside its allowlist
+# Three guards, each catching a class of silent failure:
+#   1. drift        -- OWNERS.yml vs agent definitions vs routing vs the board
+#   2. bounds       -- did the acting agent write outside its allowlist
+#   3. constitution -- mechanically checkable rules, over staged files
 set -e
 ROOT="$(git rev-parse --show-toplevel)"
 uv run --with pyyaml python "$ROOT/tools/op-cli/check_drift.py" --offline
 uv run --with pyyaml python "$ROOT/tools/op-cli/check_boundaries.py"
+uv run python "$ROOT/tools/op-cli/check_constitution.py" --staged
 """
+
+
+def agent_identity() -> str:
+    """The account agents commit as, from .env.local (GH_AGENT_USER)."""
+    envfile = ROOT / ".env.local"
+    if envfile.exists():
+        for line in envfile.read_text(encoding="utf-8").splitlines():
+            if line.strip().startswith("GH_AGENT_USER="):
+                return line.split("=", 1)[1].strip()
+    return ""
+
+
+def pending_author_is_agent() -> bool:
+    """Is this commit being authored as the agent account?
+
+    Reads the author git will actually record, which is what `-c user.name`
+    sets -- so it reflects the commit about to be made rather than the repo's
+    default config.
+    """
+    identity = agent_identity()
+    if not identity:
+        return False
+
+    # GIT_AUTHOR_IDENT is "Name <email> <timestamp> <tz>". Compare the NAME
+    # exactly -- a substring match over the whole string is wrong here, because
+    # the human's email (abdulrawoofali24@gmail.com) contains the agent's
+    # username (abdulRaw), so every human commit matched. Caught by testing the
+    # human-on-an-agent-branch case, which is exactly the false positive this
+    # check was chosen to avoid.
+    out = subprocess.run(
+        ["git", "var", "GIT_AUTHOR_IDENT"], capture_output=True, text=True, cwd=ROOT
+    ).stdout.strip()
+    name = out.split("<", 1)[0].strip() if "<" in out else out
+    return name.casefold() == identity.casefold()
 
 
 def staged_files() -> list[str]:
@@ -82,6 +123,27 @@ def main() -> int:
         return 0
 
     if not agent:
+        # An agent that forgets FW_AGENT would get an unrestricted human
+        # commit, which is the one way left to write outside a boundary by
+        # accident. Authorship is the precise signal: agents commit as the
+        # agent account, humans as themselves.
+        #
+        # Branch name was the other candidate and is wrong -- a human
+        # legitimately commits on an agent's branch (registering an app in
+        # settings.py, fixing a guard), and blocking that would train people
+        # to bypass the hook.
+        if pending_author_is_agent():
+            print(
+                f"\nREFUSED: committing as the agent account with no FW_AGENT set.\n\n"
+                f"  Author is '{agent_identity()}', so this is agent work — but the\n"
+                "  boundary guard was about to wave it through as a human commit,\n"
+                "  which would let it write anywhere.\n\n"
+                "  Set the agent explicitly:\n"
+                "      FW_AGENT=<agent> git commit ...\n\n"
+                "  If you are a person, commit under your own identity instead.\n",
+                file=sys.stderr,
+            )
+            return 1
         print(f"boundary guard: human commit ({len(files)} file(s)) — unrestricted")
         return 0
 
