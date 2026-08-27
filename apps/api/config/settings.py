@@ -70,11 +70,10 @@ INSTALLED_APPS = [
     # data-agent cannot add its own app here. That is the cost accepted in
     # research R1, roughly once per vertical.
     #
-    # It is left empty rather than listing an app that does not exist yet.
-    # A scaffold that cannot boot until an agent's task lands is a scaffold
-    # that blocks the agent it was meant to unblock.
-    #
-    # Vertical 001 adds: "core"
+    # An app is listed here only once it exists — a scaffold that cannot boot
+    # until an agent's task lands is a scaffold that blocks the agent it was
+    # meant to unblock.
+    "core",
 ]
 
 MIDDLEWARE = [
