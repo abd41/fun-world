@@ -14,6 +14,16 @@ spec-driven development, coordinated through self-hosted OpenProject.
 | **Board** | OpenProject 17 at http://localhost:8080/projects/fun-world |
 | **Content** | Blender Foundation open movies (CC-BY) |
 
+## Start here
+
+- **[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)** — five diagrams: where
+  things run, how the code fits together, a playback request end to end, how
+  work reaches an agent, and the content model. Renders on GitHub and in
+  VS Code's Markdown preview.
+- **[`docs/build-plan.html`](docs/build-plan.html)** — the full plan: every
+  decision, what it replaced and why, constraints, and build order. Open it in
+  a browser; it is self-contained and needs no network.
+
 ## The rules
 
 - [`.specify/memory/constitution.md`](.specify/memory/constitution.md) — the

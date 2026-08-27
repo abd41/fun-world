@@ -1,0 +1,5 @@
+{
+  "baseUrl": "http://localhost:3000",
+  "testCommand": "pnpm test:e2e",
+  "automationDir": "e2e"
+}

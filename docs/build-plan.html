@@ -1,0 +1,1375 @@
+<title>Fun World Build Plan</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+
+<style>
+:root{
+  --ground:#F2F4F6; --surface:#FFFFFF; --surface-2:#E8ECF0; --surface-3:#DFE4EA;
+  --ink:#12161C; --ink-2:#48535F; --ink-3:#77828E;
+  --rule:#D3DAE1; --rule-2:#BEC7D0;
+  --accent:#A8640C; --accent-ink:#7A4708; --accent-soft:#FAF0DC; --accent-line:#E0B978;
+  --contract:#1B7365; --contract-soft:#DCEFEB; --contract-line:#8CC6BC;
+  --warn:#AB3428; --warn-soft:#FAE3E0; --warn-line:#DDA098;
+  --shadow:0 1px 2px rgba(18,22,28,.05), 0 8px 24px -12px rgba(18,22,28,.14);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#0D1117; --surface:#151B23; --surface-2:#1D252F; --surface-3:#242E39;
+    --ink:#E4E9EF; --ink-2:#9EACBA; --ink-3:#6C7B8A;
+    --rule:#252E39; --rule-2:#33404E;
+    --accent:#E8A33D; --accent-ink:#F2BE71; --accent-soft:#2C2214; --accent-line:#6B5426;
+    --contract:#4FBFAD; --contract-soft:#112A27; --contract-line:#2A5C55;
+    --warn:#E48377; --warn-soft:#2D1917; --warn-line:#5E332E;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.6);
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0D1117; --surface:#151B23; --surface-2:#1D252F; --surface-3:#242E39;
+  --ink:#E4E9EF; --ink-2:#9EACBA; --ink-3:#6C7B8A;
+  --rule:#252E39; --rule-2:#33404E;
+  --accent:#E8A33D; --accent-ink:#F2BE71; --accent-soft:#2C2214; --accent-line:#6B5426;
+  --contract:#4FBFAD; --contract-soft:#112A27; --contract-line:#2A5C55;
+  --warn:#E48377; --warn-soft:#2D1917; --warn-line:#5E332E;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.6);
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--ground); color:var(--ink);
+  font-family:"IBM Plex Sans",ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+  font-size:16px; line-height:1.62; -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1120px; margin:0 auto; padding:0 28px}
+.col{max-width:74ch}
+
+h1,h2,h3,h4{font-family:Archivo,ui-sans-serif,system-ui,sans-serif; text-wrap:balance; margin:0}
+h1{font-weight:800; font-size:clamp(2.1rem,5vw,3.3rem); line-height:1.04; letter-spacing:-.028em}
+h2{font-weight:700; font-size:clamp(1.5rem,3vw,2.05rem); line-height:1.12; letter-spacing:-.02em}
+h3{font-weight:700; font-size:1.12rem; line-height:1.3; letter-spacing:-.008em}
+h4{font-weight:600; font-size:.95rem; letter-spacing:-.004em}
+p{margin:0}
+a{color:var(--accent); text-decoration-thickness:1px; text-underline-offset:3px}
+a:focus-visible,summary:focus-visible{outline:2px solid var(--accent); outline-offset:3px; border-radius:3px}
+
+code,.mono{font-family:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace}
+code{font-size:.855em; background:var(--surface-2); padding:.12em .38em; border-radius:4px; border:1px solid var(--rule)}
+pre{margin:0; overflow-x:auto; background:var(--surface); border:1px solid var(--rule); border-radius:10px; padding:18px 20px; font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:.83rem; line-height:1.72; color:var(--ink-2)}
+pre code{background:none; border:0; padding:0; font-size:inherit; color:inherit}
+pre b{color:var(--ink); font-weight:600}
+pre i{color:var(--accent); font-style:normal}
+pre em{color:var(--ink-3); font-style:normal}
+
+.eyebrow{font-family:"IBM Plex Mono",monospace; font-size:.7rem; font-weight:500; letter-spacing:.16em; text-transform:uppercase; color:var(--ink-3)}
+
+.mast{border-bottom:1px solid var(--rule); background:var(--surface); position:relative; overflow:hidden}
+.mast::after{content:""; position:absolute; left:0; right:0; bottom:0; height:3px;
+  background:repeating-linear-gradient(90deg,var(--accent) 0 34px,transparent 34px 44px)}
+.mast .wrap{padding-top:64px; padding-bottom:52px}
+.mast h1{margin:14px 0 0}
+.lede{margin-top:20px; font-size:1.14rem; line-height:1.58; color:var(--ink-2); max-width:64ch}
+.lede b{color:var(--ink); font-weight:600}
+.chips{display:flex; flex-wrap:wrap; gap:8px; margin-top:26px}
+.chip{font-family:"IBM Plex Mono",monospace; font-size:.72rem; letter-spacing:.02em; padding:5px 11px; border-radius:999px; border:1px solid var(--rule-2); color:var(--ink-2); background:var(--ground)}
+.chip.on{border-color:var(--accent-line); background:var(--accent-soft); color:var(--accent-ink)}
+
+nav.rail{position:sticky; top:0; z-index:20; background:var(--ground); border-bottom:1px solid var(--rule)}
+nav.rail .wrap{display:flex; gap:2px; overflow-x:auto; padding-top:0; padding-bottom:0; scrollbar-width:thin}
+nav.rail a{white-space:nowrap; font-family:"IBM Plex Mono",monospace; font-size:.735rem; letter-spacing:.03em; color:var(--ink-3); text-decoration:none; padding:12px 11px; border-bottom:2px solid transparent}
+nav.rail a:hover{color:var(--ink); border-bottom-color:var(--rule-2)}
+
+section{padding:64px 0; border-bottom:1px solid var(--rule)}
+section:last-of-type{border-bottom:0}
+.shead{display:flex; gap:18px; align-items:baseline; margin-bottom:10px}
+.snum{font-family:"IBM Plex Mono",monospace; font-size:.8rem; font-weight:600; color:var(--accent); padding-top:4px; flex:none}
+.sintro{margin-top:16px; color:var(--ink-2); font-size:1.02rem}
+.stack{display:flex; flex-direction:column; gap:24px; margin-top:32px}
+.stack-lg{gap:34px}
+
+.card{background:var(--surface); border:1px solid var(--rule); border-radius:12px; padding:22px 24px; box-shadow:var(--shadow)}
+.card > * + *{margin-top:10px}
+.card p{color:var(--ink-2); font-size:.95rem}
+.grid{display:grid; gap:16px}
+.g2{grid-template-columns:repeat(auto-fit,minmax(290px,1fr))}
+.g3{grid-template-columns:repeat(auto-fit,minmax(215px,1fr))}
+
+.flag{border-left:3px solid var(--warn); background:var(--warn-soft); border-radius:0 10px 10px 0; padding:18px 22px}
+.flag .eyebrow{color:var(--warn)}
+.flag h3{margin-top:6px}
+.flag p{color:var(--ink-2); font-size:.95rem; margin-top:8px}
+.flag b{color:var(--ink); font-weight:600}
+.note{border-left:3px solid var(--contract); background:var(--contract-soft); border-radius:0 10px 10px 0; padding:18px 22px}
+.note .eyebrow{color:var(--contract)}
+.note h3{margin-top:6px}
+.note p{color:var(--ink-2); font-size:.95rem; margin-top:8px}
+.note b{color:var(--ink); font-weight:600}
+
+.tw{overflow-x:auto; border:1px solid var(--rule); border-radius:12px; background:var(--surface); box-shadow:var(--shadow)}
+table{border-collapse:collapse; width:100%; min-width:660px; font-size:.885rem}
+th{text-align:left; font-family:"IBM Plex Mono",monospace; font-size:.68rem; font-weight:600; letter-spacing:.11em; text-transform:uppercase; color:var(--ink-3); padding:13px 16px; border-bottom:1px solid var(--rule-2); background:var(--surface-2); white-space:nowrap}
+td{padding:13px 16px; border-bottom:1px solid var(--rule); color:var(--ink-2); vertical-align:top}
+tbody tr:last-child td{border-bottom:0}
+td b{color:var(--ink); font-weight:600}
+td .mono{font-size:.83em; color:var(--ink)}
+.tnum{font-variant-numeric:tabular-nums}
+.own{font-family:"IBM Plex Mono",monospace; font-size:.74rem; color:var(--accent-ink); background:var(--accent-soft); border:1px solid var(--accent-line); border-radius:5px; padding:2px 7px; white-space:nowrap; display:inline-block}
+.pill{font-family:"IBM Plex Mono",monospace; font-size:.7rem; padding:2px 8px; border-radius:999px; border:1px solid var(--rule-2); color:var(--ink-2); white-space:nowrap}
+.pill.py{border-color:var(--contract-line); background:var(--contract-soft); color:var(--contract)}
+.pill.ts{border-color:var(--accent-line); background:var(--accent-soft); color:var(--accent-ink)}
+
+figure{margin:0; background:var(--surface); border:1px solid var(--rule); border-radius:12px; padding:26px 24px 20px; box-shadow:var(--shadow)}
+.figscroll{overflow-x:auto}
+figure svg{display:block; width:100%; min-width:600px; height:auto; color:var(--ink-2)}
+figcaption{margin-top:18px; padding-top:14px; border-top:1px solid var(--rule); font-size:.85rem; color:var(--ink-3); line-height:1.6}
+figcaption b{color:var(--ink-2); font-weight:600}
+.dbox{fill:var(--surface-2); stroke:var(--rule-2)}
+.dbox-a{fill:var(--accent-soft); stroke:var(--accent-line)}
+.dbox-c{fill:var(--contract-soft); stroke:var(--contract-line)}
+.dbox-w{fill:var(--warn-soft); stroke:var(--warn-line)}
+.dm{fill:var(--ink); font-family:"IBM Plex Mono",monospace; font-size:12px; font-weight:500}
+.dl{fill:var(--ink-3); font-family:"IBM Plex Mono",monospace; font-size:10.5px}
+.dla{fill:var(--accent-ink); font-family:"IBM Plex Mono",monospace; font-size:10.5px}
+.dlw{fill:var(--warn); font-family:"IBM Plex Mono",monospace; font-size:10.5px}
+.da{stroke:var(--ink-3); stroke-width:1.4; fill:none}
+.da-a{stroke:var(--accent); stroke-width:1.8; fill:none}
+.da-w{stroke:var(--warn); stroke-width:1.6; fill:none}
+.dash{stroke-dasharray:5 4}
+.lane{stroke:var(--rule-2); stroke-width:1.2; stroke-dasharray:3 4}
+
+ul.clean{list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:9px}
+ul.clean li{position:relative; padding-left:19px; color:var(--ink-2); font-size:.95rem}
+ul.clean li::before{content:""; position:absolute; left:2px; top:.62em; width:5px; height:5px; border-radius:1px; background:var(--accent)}
+ul.clean li b{color:var(--ink); font-weight:600}
+ol.steps{list-style:none; padding:0; margin:0; counter-reset:s; display:flex; flex-direction:column; gap:14px}
+ol.steps li{counter-increment:s; position:relative; padding-left:44px; color:var(--ink-2); font-size:.95rem}
+ol.steps li::before{content:counter(s,decimal-leading-zero); position:absolute; left:0; top:1px; font-family:"IBM Plex Mono",monospace; font-size:.72rem; font-weight:600; color:var(--accent-ink); background:var(--accent-soft); border:1px solid var(--accent-line); border-radius:5px; padding:2px 6px}
+ol.steps li b{color:var(--ink); font-weight:600}
+
+.rejected{display:flex; flex-direction:column; gap:12px}
+.rej{display:flex; gap:14px; align-items:flex-start; padding:14px 16px; background:var(--surface-2); border:1px solid var(--rule); border-radius:10px}
+.rej .x{font-family:"IBM Plex Mono",monospace; font-size:.72rem; color:var(--warn); border:1px solid var(--warn-line); background:var(--warn-soft); border-radius:5px; padding:2px 7px; flex:none; margin-top:2px}
+.rej p{font-size:.92rem; color:var(--ink-2)}
+.rej b{color:var(--ink); font-weight:600}
+
+
+/* Mermaid figures are a deliberate single-theme island: mermaid draws dark
+   text on light node fills, so the surface behind it is pinned light in BOTH
+   themes rather than inheriting a dark ground and stranding the labels.
+   Every colour here is explicit for that reason. */
+.mmfig{background:#FBFCFD; border-color:#CFD7DF}
+.mmfig .eyebrow{color:#6B7683; margin-bottom:14px}
+.mmfig figcaption{border-top-color:#DFE5EB; color:#47525E}
+.mmfig figcaption b{color:#12161C}
+.mmfig code{background:#EDF1F5; border-color:#DFE5EB; color:#12161C}
+.mmfig .mermaid{overflow-x:auto; padding:4px 0; line-height:1.4}
+.mmfig .mermaid svg{max-width:100%; height:auto}
+
+footer{padding:44px 0 64px; color:var(--ink-3); font-size:.82rem}
+footer a{color:var(--ink-2)}
+@media (prefers-reduced-motion:reduce){*{animation:none!important; transition:none!important}}
+@media (max-width:620px){ .mast .wrap{padding-top:44px;padding-bottom:38px} section{padding:48px 0} .shead{flex-direction:column; gap:4px} }
+</style>
+
+<header class="mast">
+  <div class="wrap">
+    <div class="eyebrow">Netflix clone &middot; spec-driven &middot; agent-orchestrated &middot; runs on your machine</div>
+    <h1>Fun World Build&nbsp;Plan</h1>
+    <p class="lede">A polyglot streaming app built by <b>ten agents with hard filesystem boundaries</b>, driven by GitHub Spec Kit and coordinated through <b>self-hosted OpenProject</b>. <b>Django&nbsp;6 + django-ninja</b> on the server so you learn Python properly, <b>Next.js&nbsp;16</b> on web, <b>Expo&nbsp;57</b> on mobile, and a real OAuth&nbsp;2.1 stack you build yourself before swapping in Keycloak. Nothing deploys anywhere.</p>
+    <div class="chips">
+      <span class="chip on">Local only &middot; Docker Compose</span>
+      <span class="chip on">$0 &middot; open source</span>
+      <span class="chip">Python backend, TypeScript clients</span>
+      <span class="chip">12 feature verticals</span>
+      <span class="chip">10 agents</span>
+      <span class="chip">Versions verified Aug&nbsp;2026</span>
+    </div>
+  </div>
+</header>
+
+<nav class="rail" aria-label="Sections">
+  <div class="wrap">
+    <a href="#architecture">architecture</a>
+    <a href="#decisions">decisions</a>
+    <a href="#stack">stack</a>
+    <a href="#constraints">constraints</a>
+    <a href="#repo">repo</a>
+    <a href="#agents">agents</a>
+    <a href="#sdd">spec-driven</a>
+    <a href="#board">board</a>
+    <a href="#home">home setup</a>
+    <a href="#verticals">verticals</a>
+    <a href="#auth">auth</a>
+    <a href="#video">video</a>
+    <a href="#theming">theming</a>
+    <a href="#order">build order</a>
+    <a href="#go">phase 0</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+<section id="architecture">
+  <div class="shead"><span class="snum">00</span><h2>Architecture at a glance</h2></div>
+  <div class="col sintro">Five views of the same system, from the house down to the database. Every later section elaborates one corner of these; this is the map they hang off.</div>
+
+  <div class="stack stack-lg">
+
+  <figure class="mmfig">
+    <div class="eyebrow">1 &middot; Where things run</div>
+    <pre class="mermaid">
+flowchart LR
+  subgraph HOME["Home network — nothing is publicly reachable"]
+    direction LR
+    subgraph LAPTOP["Laptop — the only server"]
+      direction TB
+      WEB["Next.js 16<br/>:3000"]
+      API["Django 6 + django-ninja<br/>:8000"]
+      PG[("Postgres 17<br/>:5433")]
+      HLS["Caddy — HLS files<br/>:8090"]
+      KC["Keycloak<br/>phase 2"]
+      OP["OpenProject<br/>:8080 · loopback only"]
+      API --> PG
+      API -. "signs playback URLs" .-> HLS
+      API -. "validates JWT" .-> KC
+    end
+    PHONE["Phone<br/>Expo 57"]
+    TVA["Fire TV · Google TV · Android TV<br/>Expo TV build"]
+    TVL["LG webOS<br/>Next.js in the TV browser"]
+    DESK["Laptop browser"]
+  end
+
+  DESK --> WEB
+  PHONE --> API
+  PHONE --> HLS
+  TVA --> API
+  TVA --> HLS
+  TVL --> WEB
+  WEB --> API
+
+  TS(["Tailscale — only devices you enrol,<br/>peer-to-peer, nothing exposed"])
+  TS -. "when away from home" .-> API
+
+  NET(["Public internet"])
+  NET x-.-x HOME
+
+  classDef server fill:#fdf3e0,stroke:#c08a3e,color:#3a2c14
+  classDef store fill:#e3efec,stroke:#4b9184,color:#12332e
+  classDef client fill:#eef1f4,stroke:#8b98a6,color:#1b2430
+  classDef blocked fill:#fbe6e3,stroke:#c0655a,color:#3d1a16
+  class WEB,API,HLS,KC,OP server
+  class PG store
+  class PHONE,TVA,TVL,DESK client
+  class NET blocked
+    </pre>
+    <figcaption><b>Three of your four TVs are Android</b>, so one Expo build covers Fire TV, Google TV and Android TV; LG webOS gets the Next.js app instead. OpenProject binds to loopback only &mdash; the televisions never need the ticket system. The crossed edge is the point: no path from the public internet reaches anything here.</figcaption>
+  </figure>
+
+  <figure class="mmfig">
+    <div class="eyebrow">2 &middot; How the code fits together</div>
+    <pre class="mermaid">
+flowchart TB
+  subgraph PY["apps/api — Python"]
+    direction LR
+    CORE["core<br/>models · admin"]
+    CAT["catalog"]
+    PRO["profiles"]
+    PRG["progress"]
+    SRCH["search"]
+    OAUTH["oauth<br/>PKCE · device grant"]
+  end
+
+  OPENAPI[/"openapi.json<br/>3.1, auto-derived"/]
+  PY --> OPENAPI
+
+  subgraph SHARED["packages — shared, one writer each"]
+    direction LR
+    CONTRACTS["contracts<br/>GENERATED"]
+    TOKENS["tokens<br/>one source of colour"]
+    UISPEC["ui-spec<br/>component contracts"]
+    PLAYER["player-core<br/>progress · resume"]
+  end
+
+  OPENAPI -- "hey-api codegen" --> CONTRACTS
+
+  subgraph TS["apps — TypeScript"]
+    direction LR
+    NEXT["web · Next.js 16"]
+    EXPO["mobile · Expo 57"]
+    TVUI["mobile/src/tv<br/>D-pad, 10-foot"]
+  end
+
+  CONTRACTS --> NEXT
+  CONTRACTS --> EXPO
+  TOKENS --> NEXT
+  TOKENS --> EXPO
+  UISPEC --> NEXT
+  UISPEC --> EXPO
+  PLAYER --> NEXT
+  PLAYER --> EXPO
+  EXPO --- TVUI
+
+  GATE{{"CI gate: regenerate,<br/>git diff must be empty"}}
+  CONTRACTS -.-> GATE
+
+  classDef py fill:#e3efec,stroke:#4b9184,color:#12332e
+  classDef shared fill:#fdf3e0,stroke:#c08a3e,color:#3a2c14
+  classDef ts fill:#eef1f4,stroke:#8b98a6,color:#1b2430
+  classDef gate fill:#fbe6e3,stroke:#c0655a,color:#3d1a16
+  class CORE,CAT,PRO,PRG,SRCH,OAUTH py
+  class CONTRACTS,TOKENS,UISPEC,PLAYER shared
+  class NEXT,EXPO,TVUI ts
+  class GATE gate
+    </pre>
+    <figcaption><b>The seam is generated, not written.</b> Because the API is Python and both clients are TypeScript, the shared types come out of the OpenAPI document rather than being hand-maintained &mdash; and the CI gate makes drift a build failure rather than a code-review comment.</figcaption>
+  </figure>
+
+  <figure class="mmfig">
+    <div class="eyebrow">3 &middot; Watching something on the television</div>
+    <pre class="mermaid">
+sequenceDiagram
+  autonumber
+  participant TV as Android TV
+  participant Ph as Your phone
+  participant Auth as Django /oauth
+  participant API as Django API
+  participant CDN as Caddy (HLS)
+
+  Note over TV,Ph: No keyboard on the TV — RFC 8628 device grant
+  TV->>Auth: POST /device/code
+  Auth-->>TV: user_code WXYZ-1234 + verification_uri + interval
+  TV->>TV: displays the code
+  Ph->>Auth: opens the URI, enters the code, approves
+  loop every `interval` seconds
+    TV->>Auth: POST /token (device_code)
+    Auth-->>TV: authorization_pending
+  end
+  Auth-->>TV: access JWT (10 min) + rotating refresh
+
+  TV->>API: GET /titles/42  (Bearer)
+  API-->>TV: metadata + episode list
+  TV->>API: POST /playback/42/authorize
+  API-->>TV: HMAC-signed master.m3u8 URL, short expiry
+  TV->>CDN: GET master.m3u8  (signature checked)
+  CDN-->>TV: variant playlists — 1080/720/480/360
+  loop every 10s while playing
+    TV->>API: PUT /progress {title, position}
+  end
+  Note over API: continue-watching now resolves on<br/>the phone and the laptop too
+    </pre>
+    <figcaption><b>The television never handles a credential.</b> It holds a device code, then tokens. The secret is typed on a device that has a keyboard &mdash; which is exactly why every real streaming service works this way, and why implementing it is the most directly useful auth exercise in this project.</figcaption>
+  </figure>
+
+  <figure class="mmfig">
+    <div class="eyebrow">4 &middot; How work reaches an agent</div>
+    <pre class="mermaid">
+flowchart TB
+  SPEC["/speckit.specify<br/>spec.md"] --> PLAN["/speckit.plan<br/>plan.md"]
+  PLAN --> TASKS["/speckit.tasks<br/>tasks.md"]
+  TASKS -- "op-cli sync" --> WP[("OpenProject<br/>work packages")]
+
+  WP --> ROUTE{{"route by Paths<br/>OWNERS.yml lookup"}}
+  ROUTE -- "one owner" --> CLAIM["op-cli claim<br/>→ In progress"]
+  ROUTE -- "two or more" --> SPLIT["op-cli split<br/>one child per owner"]
+  SPLIT --> ROUTE
+
+  CLAIM --> WORK["agent works<br/>inside its allowlist"]
+  WORK --> GUARD{{"pre-commit guard<br/>FW_AGENT vs OWNERS.yml"}}
+  GUARD -- "outside boundary" --> REJECT["rejected"]
+  GUARD -- "ok" --> PR["pull request<br/>OP#id in the body"]
+  PR --> DONE["op-cli done<br/>→ In testing"]
+
+  DONE --> QA["qa-agent<br/>browser-test-agent run"]
+  QA -- "passes" --> HUMAN{{"you review<br/>and merge"}}
+  HUMAN --> CLOSED(["Closed"])
+  QA -- "fails" --> BUG["op-cli bug<br/>routed by failing path"]
+  BUG --> WP
+
+  ESC(["&gt;3 handoffs → On hold,<br/>assigned to you"])
+  BUG -.-> ESC
+
+  classDef spec fill:#eef1f4,stroke:#8b98a6,color:#1b2430
+  classDef gate fill:#fbe6e3,stroke:#c0655a,color:#3d1a16
+  classDef act fill:#fdf3e0,stroke:#c08a3e,color:#3a2c14
+  classDef store fill:#e3efec,stroke:#4b9184,color:#12332e
+  class SPEC,PLAN,TASKS spec
+  class ROUTE,GUARD,HUMAN gate
+  class CLAIM,SPLIT,WORK,PR,DONE,QA,BUG act
+  class WP,CLOSED,REJECT,ESC store
+    </pre>
+    <figcaption><b>No agent ever picks a recipient.</b> The only way work reaches a second agent is a path lookup, which is a pure function &mdash; so the same paths always produce the same owner and a loop has nowhere to form. The one case that <em>can</em> cycle, fix&rarr;retest&rarr;still red, is caught by the handoff counter.</figcaption>
+  </figure>
+
+  <figure class="mmfig">
+    <div class="eyebrow">5 &middot; The content model</div>
+    <pre class="mermaid">
+erDiagram
+  ACCOUNT ||--o{ PROFILE : "up to 5"
+  PROFILE ||--o{ PROGRESS : "resume points"
+  PROFILE ||--o{ MYLIST : "saved"
+  PROFILE ||--o{ DOWNLOAD : "offline, mobile only"
+
+  TITLE ||--o{ SEASON : "series only"
+  SEASON ||--o{ EPISODE : has
+  TITLE }o--o{ GENRE : "tagged"
+  TITLE ||--o{ ARTWORK : "billboard · poster · still"
+
+  TITLE ||--o| RENDITION : "film"
+  EPISODE ||--o| RENDITION : "episode"
+  RENDITION ||--o{ VARIANT : "1080 · 720 · 480 · 360"
+  RENDITION ||--o{ SUBTITLE : "vtt tracks"
+
+  PROGRESS }o--|| RENDITION : "position in"
+  MYLIST }o--|| TITLE : references
+
+  PROFILE {
+    uuid id
+    string name
+    bool kids_mode
+    string pin_hash
+  }
+  TITLE {
+    uuid id
+    string name
+    string kind "film or series"
+    int year
+    string licence "CC-BY"
+    string attribution
+  }
+  RENDITION {
+    uuid id
+    int duration_s
+    string hls_path
+  }
+  PROGRESS {
+    uuid profile_id
+    uuid rendition_id
+    int position_s
+    datetime updated_at
+  }
+    </pre>
+    <figcaption><b>Progress is keyed on the rendition, not the title</b> &mdash; so an episode resumes where you left it rather than where you left the series. <code>licence</code> and <code>attribution</code> are columns rather than documentation, because CC-BY requires the credit to actually be shown.</figcaption>
+  </figure>
+
+  </div>
+</section>
+
+<section id="decisions">
+  <div class="shead"><span class="snum">01</span><h2>How the stack got here</h2></div>
+  <div class="col sintro">Three rounds of decisions, two of which reversed an earlier recommendation of mine. Recorded here because the reasoning matters more than the conclusion &mdash; if a constraint changes later, you&rsquo;ll know which choice to revisit.</div>
+  <div class="grid g2 stack">
+    <div class="card">
+      <div class="eyebrow">Web &mdash; replaced</div>
+      <h3>Astro 7 &rarr; Next.js 16</h3>
+      <p>Astro&rsquo;s value is SEO, cold-visitor TTFB and shipping zero JS on content pages. Running local-only, all three are worth nothing. And its multi-page architecture <b>loses client state on navigation</b> &mdash; which for a persistent player, playback position and a mini-player is close to fatal. Every route here is behind login. That is Next.js territory.</p>
+    </div>
+    <div class="card">
+      <div class="eyebrow">Backend &mdash; replaced twice</div>
+      <h3>Hono &rarr; FastAPI &rarr; Django 6 + django-ninja</h3>
+      <p>Python because you asked to learn it. <b>Django</b> over FastAPI for one decisive reason: the admin is a free catalog CMS, which removes most of a vertical. The old objection &mdash; Django being sync &mdash; died with 6.0&rsquo;s async ORM. django-ninja keeps Pydantic&nbsp;v2 and auto OpenAPI, so contract generation survives intact.</p>
+    </div>
+    <div class="card">
+      <div class="eyebrow">Deployment &mdash; deleted</div>
+      <h3>Cloudflare &rarr; nothing</h3>
+      <p>An entire section of this plan disappeared. No Pages, no R2, no Render, no adapter choice, and the Workers CPU limit that would have blocked a database-backed Python API is now irrelevant. <b>Docker Compose is the whole infrastructure story.</b></p>
+    </div>
+    <div class="card">
+      <div class="eyebrow">Video &mdash; replaced</div>
+      <h3>Mux &rarr; self-hosted HLS on disk</h3>
+      <p>Every managed option costs money at rest. You transcode Blender&rsquo;s open movies into a real multi-bitrate ladder with ffmpeg and serve them from local disk. You end up writing the signed-playback logic Mux would have hidden from you &mdash; which is the more instructive outcome anyway.</p>
+    </div>
+  </div>
+
+  <div class="stack">
+    <div class="eyebrow">Considered and rejected &mdash; and why, in case you want to revisit</div>
+    <div class="rejected">
+      <div class="rej"><span class="x">no</span><p><b>One universal Expo app</b> (iOS + Android + web from a single codebase). Technically the strongest fit: it would halve the frontend work, drop you to 8 agents, delete <code>packages/ui-spec</code>, and make &ldquo;same UI, colours change&rdquo; structural rather than policed. <b>Rejected because you chose learning breadth</b> &mdash; two frontend paradigms teaches more than one. Revisit this the moment scope starts to hurt.</p></div>
+      <div class="rej"><span class="x">no</span><p><b>NestJS or Hono</b> for an all-TypeScript stack. Would have collapsed the contract seam entirely &mdash; a shared Zod package, or tRPC with zero codegen &mdash; and Nest&rsquo;s modules map neatly onto agent boundaries. <b>Rejected because you already know JS</b>, so it teaches you a framework&rsquo;s opinions rather than a language. It is the most coherent stack and the lowest learning yield.</p></div>
+      <div class="rej"><span class="x">no</span><p><b>Django for admin plus FastAPI for the API.</b> A real production pattern, but two Python apps and two ORM sessions is more moving parts than one person on one machine should carry.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="stack">
+  <div class="shead"><span class="snum">02</span><h2>The stack, with versions that are actually current</h2></div>
+  <div class="col sintro">Every version here was checked against release notes this month rather than recalled. Three of them shipped inside the last ninety days.</div>
+  <div class="tw stack">
+    <table>
+      <thead><tr><th>Layer</th><th>Choice</th><th>Version</th><th>Why this one</th></tr></thead>
+      <tbody>
+        <tr><td><b>Web app</b></td><td><span class="pill ts">TS</span> Next.js</td><td class="mono tnum">16</td><td>RSC-native App Router. The right shape for an app where every route is authenticated and client state has to survive navigation &mdash; the exact thing Astro could not give you.</td></tr>
+        <tr><td><b>Mobile app</b></td><td><span class="pill ts">TS</span> Expo</td><td class="mono tnum">SDK 57</td><td>RN 0.86.2, React 19.2, New Architecture only. Router&nbsp;v7, Hermes&nbsp;V1. Ships an official agent-skills repo at <code>expo/skills</code>.</td></tr>
+        <tr><td><b>API</b></td><td><span class="pill py">PY</span> Django + django-ninja</td><td class="mono tnum">6.0.1</td><td>Your Python learning surface. Django 6.0 brought genuine async ORM &mdash; <code>aget()</code>, <code>aall()</code>, async views with no <code>sync_to_async</code> boilerplate. Supports Python 3.12&ndash;3.14.</td></tr>
+        <tr><td><b>Admin</b></td><td><span class="pill py">PY</span> Django admin</td><td class="mono">built in</td><td>A working catalog CMS for the cost of defining models. FastAPI equivalents cover roughly 60% of it. This single feature is why Django won.</td></tr>
+        <tr><td><b>Database</b></td><td>PostgreSQL in Docker</td><td class="mono tnum">17</td><td>Local container. Full-text search plus <code>pg_trgm</code> covers the search vertical with no extra service.</td></tr>
+        <tr><td><b>Auth</b></td><td><span class="pill py">PY</span> Own OAuth 2.1, then Keycloak</td><td class="mono">RFC 9700</td><td>Keycloak over Authentik and Zitadel: Apache&nbsp;2.0 (Zitadel v3 moved to AGPL-3.0), widest protocol coverage, and by far the most useful to have used.</td></tr>
+        <tr><td><b>Contracts</b></td><td><span class="pill ts">TS</span> @hey-api/openapi-ts</td><td class="mono">OpenAPI 3.1</td><td>django-ninja emits OpenAPI from Pydantic v2 schemas; hey-api turns it into TS types, Zod schemas and TanStack Query hooks for both clients.</td></tr>
+        <tr><td><b>Styling</b></td><td>Tailwind v4 &divide; NativeWind v5</td><td class="mono">v4 / v5 preview</td><td>One class vocabulary across two codebases, fed by one token source. This is what makes &ldquo;same UI, colours differ&rdquo; enforceable.</td></tr>
+        <tr><td><b>Player</b></td><td>Vidstack &divide; expo-video</td><td class="mono">MIT / 57.0.2</td><td>Vidstack wraps hls.js with accessible controls and runs at Reddit scale. <code>expo-video</code> gets HLS natively on both mobile platforms.</td></tr>
+        <tr><td><b>Video</b></td><td>ffmpeg &rarr; HLS on local disk</td><td class="mono">CMAF fMP4</td><td>H.264 with AAC-LC, 6&nbsp;s segments, 2&nbsp;s keyframes, four-rung ladder. Served by Caddy in Compose.</td></tr>
+        <tr><td><b>Monorepo</b></td><td>pnpm + Turborepo &divide; uv</td><td class="mono">&mdash;</td><td>Metro has built-in monorepo support now; Turborepo caches the TypeScript side and uv owns the Python side. They coexist without fighting.</td></tr>
+        <tr><td><b>Infra</b></td><td>Docker Compose</td><td class="mono">local</td><td>postgres &middot; keycloak &middot; caddy. Nothing else. Nothing deploys.</td></tr>
+        <tr><td><b>Tickets</b></td><td>OpenProject (self-hosted)</td><td class="mono tnum">17-slim</td><td>Already in <code>../openproject-selfhost</code>. Replaces GitHub Projects: local, free, richer work-package model. See &sect;07.</td></tr>
+        <tr><td><b>E2E tests</b></td><td>browser-test-agent</td><td class="mono">yours</td><td>You already built it. CDP-attached persistent browser, and its <code>coverage</code> manifest maps requirements to specs &mdash; which is what makes a bug ticket carry real evidence.</td></tr>
+        <tr><td><b>Code graph</b></td><td>Graphify <span class="pill">phase 3</span></td><td class="mono">pre-v1</td><td>tree-sitter AST across ~40 languages, local, Apache-2.0/MIT. Worth adopting once there is code to graph &mdash; not before.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="stack">
+    <div class="note">
+      <div class="eyebrow">On Graphify specifically</div>
+      <h3>Strong fit, deliberately deferred to Phase 3</h3>
+      <p><b>Why it fits:</b> you are polyglot, and the chain Django model &rarr; OpenAPI &rarr; generated TS &rarr; two clients is exactly where grep fails and a real graph earns its place. Better still, if it resolves import and call edges it can detect when <code>apps/web</code> depends on something in <code>apps/api</code> that <em>isn&rsquo;t</em> the generated contract &mdash; a boundary-violation detector, which is the enforcement layer from &sect;05 done properly rather than by hand.</p>
+      <p><b>Why wait:</b> a knowledge graph of an empty directory is nothing, so its value only starts once Phase&nbsp;1 lands. And it is pre-v1, on an active <code>v8</code> branch. You are already carrying NativeWind v5 preview; stacking two unstable dependencies on the critical path is how you end up debugging tools instead of the app. <b>Adopt it as a read-only shared surface</b> &mdash; it needs no path boundary, every agent can query it safely, and if it breaks nothing stops.</p>
+    </div>
+  </div>
+</section>
+
+<section id="constraints">
+  <div class="shead"><span class="snum">03</span><h2>Three constraints worth knowing before you start</h2></div>
+  <div class="col sintro">The earlier deployment constraints are gone with deployment. These three replace them, and all three are specific to running the whole thing on one Windows machine with a phone in your hand.</div>
+  <div class="stack">
+    <div class="flag">
+      <div class="eyebrow">Constraint &mdash; local networking</div>
+      <h3>Your phone cannot reach <code>localhost</code></h3>
+      <p>This is the one that wastes an afternoon. The Expo app running on a physical device is a <b>different machine</b> from the one serving Django and the HLS files. <code>http://localhost:8000</code> resolves to the phone itself and fails silently in ways that look like CORS or auth bugs.</p>
+      <p><b>Design for it from day one:</b> bind Django to <code>0.0.0.0</code>, put your machine&rsquo;s LAN IP in a single <code>EXPO_PUBLIC_API_URL</code> env var, add the same IP to Django&rsquo;s <code>ALLOWED_HOSTS</code> and CORS origins, and open the ports in Windows Firewall &mdash; it blocks inbound LAN connections by default. The HLS base URL needs exactly the same treatment, or video will play on web and fail on device.</p>
+    </div>
+    <div class="flag">
+      <div class="eyebrow">Constraint &mdash; auth architecture</div>
+      <h3>React Server Components and a separate API server need a token handoff</h3>
+      <p>Next.js RSC runs on the server, so it has no access to a token held in browser memory. With Django as a separate service, every server-side fetch has to carry credentials deliberately &mdash; forwarding the session cookie, or reading a httpOnly cookie in the server component and attaching a bearer header.</p>
+      <p><b>Decide this once, in the auth spec, and never again.</b> Getting it wrong produces the classic symptom: pages render fine on client navigation and 401 on hard refresh. Mobile has no equivalent problem, because Expo is always a client.</p>
+    </div>
+    <div class="flag">
+      <div class="eyebrow">Constraint &mdash; styling</div>
+      <h3>NativeWind v5 is still on the preview track</h3>
+      <p>Tailwind v4 syntax on native only exists in NativeWind v5, officially supported from Expo SDK&nbsp;56 onward but not marked stable. The alternative pins native to v4 (Tailwind v3 syntax) while web runs v4 &mdash; two dialects of the same vocabulary, which quietly erodes the guarantee you asked for.</p>
+      <p><b>Recommendation: take the preview.</b> The token package can emit both formats, so reversing this is a config change rather than a rewrite.</p>
+    </div>
+    <div class="note">
+      <div class="eyebrow">Project rule &mdash; private, not airgapped</div>
+      <h3>The goal is no public exposure, not no network</h3>
+      <p>The concern here is legal and privacy, not connectivity: don&rsquo;t publish something that looks like Netflix, and don&rsquo;t leak usage anywhere. That is <b>not</b> the same as an airgap &mdash; an airgap would break the TV, which is the whole point of the build. <b>The app binds <code>0.0.0.0</code> and is reachable across your LAN and your tailnet. It is never reachable from the open internet.</b></p>
+      <p><b>On the legal question, briefly:</b> what you are building is Jellyfin &mdash; a self-hosted media server streaming content you have rights to, to your own devices. That is a large, ordinary, legitimate category. The two rules that actually matter are <b>never ship Netflix&rsquo;s name, logo, wordmark or brand colour</b>, and <b>only stream content you have rights to</b> (Blender&rsquo;s open movies are CC-BY, so that is already handled). A UI of poster rows is a generic pattern shared by Disney+, Prime, Hulu, Plex and Jellyfin, and is not protectable. A private or public GitHub repo is equally fine.</p>
+      <div class="tw" style="margin-top:14px">
+        <table>
+          <thead><tr><th>Egress point</th><th>Status</th><th>How it is closed</th></tr></thead>
+          <tbody>
+            <tr><td><b>Cloudflare Tunnel</b></td><td><span class="own">closed</span></td><td>Service removed from the compose override, <code>CF_TUNNEL_TOKEN</code> stripped from <code>.env</code>, image deleted. Revoke the token in Cloudflare too &mdash; deleting it locally does not invalidate it</td></tr>
+            <tr><td><b>OpenProject security badge</b></td><td><span class="own">closed</span></td><td>Posts version, install type, DB type and an anonymous install ID to OpenProject&rsquo;s release database. <code>OPENPROJECT_SECURITY__BADGE__DISPLAYED=false</code></td></tr>
+            <tr><td><b>OpenProject Enterprise banners</b></td><td><span class="own">closed</span></td><td><code>OPENPROJECT_EE__HIDE__BANNERS=true</code></td></tr>
+            <tr><td><b>Gravatar avatars</b></td><td><span class="pill">yours</span></td><td>OpenProject renders avatars through gravatar.com with a 404 fallback to internal initials &mdash; so it still makes the call. Turn Gravatar off under Administration &rarr; Avatars after first login</td></tr>
+            <tr><td><b>Catalog metadata</b></td><td><span class="pill">design</span></td><td>No live TMDB calls. Fetch once at seed time and <b>commit the JSON as fixtures</b> &mdash; which also makes seeds deterministic and tests reproducible</td></tr>
+            <tr><td><b>Keycloak social login</b></td><td><span class="pill">dropped</span></td><td>External IdPs need egress. Local realm users only</td></tr>
+            <tr><td><b>Web fonts</b></td><td><span class="own">fine</span></td><td><code>next/font/google</code> downloads at <em>build</em> time and self-hosts, so the browser never calls Google. Expo uses <code>expo-font</code> with the files committed</td></tr>
+            <tr><td><b>Framework telemetry</b></td><td><span class="pill">yours</span></td><td>Next.js reports anonymous telemetry by default. <code>NEXT_TELEMETRY_DISABLED=1</code> in the root env</td></tr>
+            <tr><td><b>Graphify</b></td><td><span class="own">fine</span></td><td>AST parsing is local and deterministic &mdash; nothing leaves the machine. Use AST-only mode; its optional LLM semantic extraction is egress unless pointed at a local Ollama</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="note">
+      <div class="eyebrow">Worth knowing, not a blocker</div>
+      <h3>Django 6&rsquo;s async is real, but the ecosystem is patchy</h3>
+      <p>The ORM and views are genuinely async now. Third-party Django packages often are not, and will force you back through <code>sync_to_async</code>. Keep the async boundary explicit and shallow &mdash; async at the view and ORM layer, sync helpers wrapped deliberately &mdash; rather than letting it sprawl.</p>
+    </div>
+  </div>
+</section>
+
+<section id="repo">
+  <div class="shead"><span class="snum">04</span><h2>Repo shape and the polyglot seam</h2></div>
+  <div class="col sintro">One repo, two toolchains, three apps. The interesting part is the join: because the API is Python and both clients are TypeScript, the shared contract can&rsquo;t be a hand-written package. It has to be generated &mdash; which turns out to be a better arrangement than hand-writing it would have been.</div>
+
+  <div class="stack stack-lg">
+  <pre><code><b>fun-world/</b>
+&#9500;&#9472;&#9472; <b>memory/</b>constitution.md          <em># Spec Kit: the non-negotiable principles</em>
+&#9500;&#9472;&#9472; <b>specs/</b>NNN-feature/              <em># spec.md, plan.md, tasks.md — one dir per vertical</em>
+&#9500;&#9472;&#9472; <b>apps/</b>
+&#9474;   &#9500;&#9472;&#9472; <b>api/</b>                        <i>PYTHON</i> <em>— Django 6 + django-ninja, uv</em>
+&#9474;   &#9474;   &#9500;&#9472;&#9472; catalog/ profiles/ progress/ search/
+&#9474;   &#9474;   &#9500;&#9472;&#9472; oauth/                    <em># owned solely by auth-agent</em>
+&#9474;   &#9474;   &#9500;&#9472;&#9472; core/models.py + migrations/  <em># owned solely by data-agent</em>
+&#9474;   &#9474;   &#9492;&#9472;&#9472; tests/
+&#9474;   &#9500;&#9472;&#9472; <b>web/</b>                        <i>TYPESCRIPT</i> <em>— Next.js 16, App Router, RSC</em>
+&#9474;   &#9492;&#9472;&#9472; <b>mobile/</b>                     <i>TYPESCRIPT</i> <em>— Expo 57 + Router v7</em>
+&#9500;&#9472;&#9472; <b>packages/</b>
+&#9474;   &#9500;&#9472;&#9472; contracts/                    <em># GENERATED from openapi.json — never hand-edited</em>
+&#9474;   &#9500;&#9472;&#9472; tokens/                       <em># one token source → Tailwind theme + NativeWind preset</em>
+&#9474;   &#9500;&#9472;&#9472; ui-spec/                      <em># component contracts both clients must satisfy</em>
+&#9474;   &#9492;&#9472;&#9472; player-core/                  <em># progress maths, heartbeat, resume rules</em>
+&#9500;&#9472;&#9472; <b>tools/</b>media/                    <em># ffmpeg ladder, HLS packaging</em>
+&#9500;&#9472;&#9472; <b>infra/</b>                          <em># docker-compose: postgres · keycloak · caddy</em>
+&#9500;&#9472;&#9472; <b>scripts/</b>board/                  <em># Projects v2 GraphQL helpers</em>
+&#9492;&#9472;&#9472; <b>.claude/</b>agents/*.md              <em># the ten agent definitions and their path allowlists</em></code></pre>
+
+  <figure>
+    <div class="figscroll">
+    <svg viewBox="0 0 900 268" role="img" aria-label="Django with django-ninja emits an OpenAPI 3.1 document, hey-api generates it into packages/contracts, and the Next.js web app and Expo mobile app import from there. A CI gate regenerates on every pull request and fails the build if the diff is non-empty.">
+      <defs>
+        <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--ink-3)"/></marker>
+        <marker id="ara" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--accent)"/></marker>
+      </defs>
+
+      <rect class="dbox-c" x="12" y="58" width="176" height="88" rx="9" stroke-width="1.4"/>
+      <text class="dm" x="30" y="88">apps/api</text>
+      <text class="dl" x="30" y="108">Django 6 &middot; django-ninja</text>
+      <text class="dl" x="30" y="126">Pydantic v2 schemas</text>
+
+      <line class="da-a" x1="192" y1="102" x2="242" y2="102" marker-end="url(#ara)"/>
+      <text class="dla" x="194" y="92">serves</text>
+
+      <rect class="dbox" x="250" y="70" width="146" height="64" rx="9" stroke-width="1.4"/>
+      <text class="dm" x="266" y="98">/openapi.json</text>
+      <text class="dl" x="266" y="117">3.1 &middot; auto-derived</text>
+
+      <line class="da-a" x1="400" y1="102" x2="460" y2="102" marker-end="url(#ara)"/>
+      <text class="dla" x="396" y="92">hey-api codegen</text>
+
+      <rect class="dbox-a" x="468" y="52" width="196" height="100" rx="9" stroke-width="1.4"/>
+      <text class="dm" x="486" y="80">packages/contracts</text>
+      <text class="dl" x="486" y="100">TS types &middot; Zod schemas</text>
+      <text class="dl" x="486" y="117">TanStack Query hooks</text>
+      <text class="dl" x="486" y="137">generated, not authored</text>
+
+      <line class="da" x1="668" y1="90" x2="726" y2="70" marker-end="url(#ar)"/>
+      <line class="da" x1="668" y1="116" x2="726" y2="138" marker-end="url(#ar)"/>
+      <text class="dl" x="672" y="112">imports</text>
+
+      <rect class="dbox" x="732" y="42" width="156" height="54" rx="9" stroke-width="1.4"/>
+      <text class="dm" x="748" y="66">apps/web</text>
+      <text class="dl" x="748" y="84">Next.js 16</text>
+
+      <rect class="dbox" x="732" y="114" width="156" height="54" rx="9" stroke-width="1.4"/>
+      <text class="dm" x="748" y="138">apps/mobile</text>
+      <text class="dl" x="748" y="156">Expo 57</text>
+
+      <line class="da dash" x1="566" y1="156" x2="566" y2="200"/>
+      <rect class="dbox-w" x="392" y="202" width="348" height="48" rx="9" stroke-width="1.4" stroke-dasharray="5 4"/>
+      <text class="dlw" x="412" y="223">CI gate: regenerate, then git diff --exit-code</text>
+      <text class="dl" x="412" y="240">a stale client fails the build &mdash; drift cannot merge</text>
+    </svg>
+    </div>
+    <figcaption><b>The polyglot seam.</b> Because the API is Python and both clients are TypeScript, the shared types are generated rather than written. The CI gate is what makes this a contract instead of a convention: regenerate on every pull request, and fail if anything moved. Roughly twenty lines of config buys you a class of bug that cannot happen.</figcaption>
+  </figure>
+  </div>
+</section>
+
+<section id="agents">
+  <div class="shead"><span class="snum">05</span><h2>Ten agents, ten filesystem boundaries</h2></div>
+  <div class="col sintro">You asked for clear boundaries based on features. The version that actually holds is stricter: boundaries are <b>directory paths</b>, and <b>exactly one agent may write to each shared package</b>. Everyone else reads. A change that crosses a boundary is a spec amendment, never a direct edit.</div>
+
+  <div class="stack stack-lg">
+  <div class="tw">
+    <table>
+      <thead><tr><th>Agent</th><th>Lang</th><th>Writes to</th><th>Reads</th><th>Its one job</th></tr></thead>
+      <tbody>
+        <tr><td><span class="own">contract-keeper</span></td><td><span class="pill ts">TS</span></td><td class="mono">packages/contracts</td><td>everything</td><td>Runs codegen, guards the CI drift gate, arbitrates breaking API changes</td></tr>
+        <tr><td><span class="own">design-system</span></td><td><span class="pill ts">TS</span></td><td class="mono">packages/tokens<br>packages/ui-spec</td><td>&mdash;</td><td>Owns the single token source and the component contracts both clients implement</td></tr>
+        <tr><td><span class="own">api-agent</span></td><td><span class="pill py">PY</span></td><td class="mono">apps/api/{catalog,profiles,<br>progress,search}/</td><td>contracts, models</td><td>Catalog, profiles, progress and search endpoints</td></tr>
+        <tr><td><span class="own">auth-agent</span></td><td><span class="pill py">PY</span></td><td class="mono">apps/api/oauth/<br>infra/keycloak/</td><td>contracts, models</td><td>OAuth 2.1, PKCE, token rotation, JWKS, the Keycloak realm</td></tr>
+        <tr><td><span class="own">data-agent</span></td><td><span class="pill py">PY</span></td><td class="mono">apps/api/core/models.py<br>apps/api/**/migrations/</td><td>contracts</td><td>Models, migrations, seeds, admin registration. The only agent that may write a migration</td></tr>
+        <tr><td><span class="own">web-agent</span></td><td><span class="pill ts">TS</span></td><td class="mono">apps/web/**</td><td>contracts, tokens, ui-spec</td><td>Next.js routes, server components, client islands</td></tr>
+        <tr><td><span class="own">mobile-agent</span></td><td><span class="pill ts">TS</span></td><td class="mono">apps/mobile/**</td><td>contracts, tokens, ui-spec</td><td>Expo Router screens, native tabs, downloads</td></tr>
+        <tr><td><span class="own">media-agent</span></td><td>both</td><td class="mono">tools/media/**<br>packages/player-core</td><td>contracts</td><td>The ffmpeg ladder, HLS packaging, signed playback URLs</td></tr>
+        <tr><td><span class="own">qa-agent</span></td><td>both</td><td class="mono">tests/, e2e/</td><td>everything</td><td>Writes tests and only tests. Never touches <code>src</code>, so it cannot fix a bug by hiding it</td></tr>
+        <tr><td><span class="own">board-agent</span></td><td><span class="pill ts">TS</span></td><td class="mono">.github/<br>scripts/board/</td><td>specs/</td><td>Keeps the Projects v2 board in sync with reality</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <figure>
+    <div class="figscroll">
+    <svg viewBox="0 0 880 342" role="img" aria-label="apps/api generates packages/contracts. The Next.js web app and Expo mobile app read contracts but cannot write to them. A direct edit from web-agent into apps/api is blocked by the path allowlist and must go through a spec amendment instead.">
+      <defs>
+        <marker id="br" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--ink-3)"/></marker>
+        <marker id="bra" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--accent)"/></marker>
+      </defs>
+
+      <rect class="dbox-a" x="316" y="14" width="248" height="72" rx="9" stroke-width="1.4"/>
+      <text class="dm" x="336" y="42">packages/contracts</text>
+      <text class="dl" x="336" y="61">one writer: contract-keeper</text>
+      <text class="dl" x="336" y="77">everyone else: read-only</text>
+
+      <path class="da-a" d="M 440 174 L 440 92" marker-end="url(#bra)"/>
+      <text class="dla" x="450" y="136">generates</text>
+
+      <path class="da dash" d="M 330 62 L 176 62 L 176 172" marker-end="url(#br)"/>
+      <text class="dl" x="186" y="120">reads only</text>
+
+      <path class="da dash" d="M 550 62 L 704 62 L 704 172" marker-end="url(#br)"/>
+      <text class="dl" x="616" y="120">reads only</text>
+
+      <rect class="dbox" x="88" y="178" width="176" height="76" rx="9" stroke-width="1.4"/>
+      <text class="dm" x="106" y="204">apps/web</text>
+      <text class="dl" x="106" y="223">web-agent</text>
+      <text class="dl" x="106" y="240">Next.js 16</text>
+
+      <rect class="dbox-c" x="336" y="178" width="208" height="76" rx="9" stroke-width="1.4"/>
+      <text class="dm" x="354" y="204">apps/api</text>
+      <text class="dl" x="354" y="223">api-agent &middot; auth-agent</text>
+      <text class="dl" x="354" y="240">data-agent</text>
+
+      <rect class="dbox" x="616" y="178" width="176" height="76" rx="9" stroke-width="1.4"/>
+      <text class="dm" x="634" y="204">apps/mobile</text>
+      <text class="dl" x="634" y="223">mobile-agent</text>
+      <text class="dl" x="634" y="240">Expo 57</text>
+
+      <line class="da-w" x1="270" y1="216" x2="330" y2="216"/>
+      <line class="da-w" x1="292" y1="206" x2="310" y2="226"/>
+      <line class="da-w" x1="310" y1="206" x2="292" y2="226"/>
+
+      <line class="da-w dash" x1="228" y1="282" x2="228" y2="310"/>
+      <text class="dlw" x="238" y="288">blocked by path allowlist &mdash; web-agent cannot edit the API</text>
+      <text class="dl" x="238" y="306">the change goes back through the spec, and contracts regenerate</text>
+    </svg>
+    </div>
+    <figcaption><b>One writer, many readers.</b> The rule that keeps ten agents from colliding: a client that needs a different API shape cannot reach across and edit the server. It amends the spec, the server changes, contracts regenerate, and the client picks up new types. Slower per change &mdash; and the reason web and mobile can safely work the same feature in parallel.</figcaption>
+  </figure>
+
+  <div class="note">
+    <div class="eyebrow">How the boundary is enforced</div>
+    <h3>Three layers, because prompts alone leak</h3>
+    <p><b>1. Agent definition.</b> Each <code>.claude/agents/*.md</code> frontmatter lists its tools, and its system prompt names its allowed paths. This catches the honest mistakes.</p>
+    <p><b>2. A pre-commit guard.</b> <code>scripts/check-boundaries.py</code> reads an <code>OWNERS.yml</code> map and rejects a staged changeset touching paths outside the declared agent&rsquo;s allowlist. This catches the rest.</p>
+    <p><b>3. CODEOWNERS plus a required check.</b> The same map expressed as GitHub CODEOWNERS, so a cross-boundary PR is visible in review rather than merged quietly.</p>
+  </div>
+  </div>
+</section>
+
+<section id="sdd">
+  <div class="shead"><span class="snum">06</span><h2>The spec-driven loop</h2></div>
+  <div class="col sintro">Spec Kit is MIT-licensed and installs through uv, which you already have. It gives you a constitution, then a repeating cycle per feature. The command that matters most for your setup is <code>/speckit.taskstoissues</code> &mdash; it turns a task list into real GitHub issues, which is what connects specs to the board.</div>
+
+  <div class="stack stack-lg">
+  <figure>
+    <div class="figscroll">
+    <svg viewBox="0 0 900 262" role="img" aria-label="A feature moves from spec.md to plan.md to tasks.md, then taskstoissues creates GitHub issues which become Projects v2 board items. An agent claims one, opens a pull request, and on merge the item moves to Done. The converge command then appends remaining work back onto tasks.md, closing the loop.">
+      <defs>
+        <marker id="cr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--ink-3)"/></marker>
+        <marker id="cra" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--accent)"/></marker>
+      </defs>
+
+      <rect class="dbox" x="10" y="58" width="118" height="58" rx="8" stroke-width="1.3"/>
+      <text class="dm" x="26" y="82">spec.md</text>
+      <text class="dl" x="26" y="100">what &amp; why</text>
+
+      <line class="da" x1="132" y1="87" x2="164" y2="87" marker-end="url(#cr)"/>
+
+      <rect class="dbox" x="170" y="58" width="118" height="58" rx="8" stroke-width="1.3"/>
+      <text class="dm" x="186" y="82">plan.md</text>
+      <text class="dl" x="186" y="100">how</text>
+
+      <line class="da" x1="292" y1="87" x2="324" y2="87" marker-end="url(#cr)"/>
+
+      <rect class="dbox" x="330" y="58" width="118" height="58" rx="8" stroke-width="1.3"/>
+      <text class="dm" x="346" y="82">tasks.md</text>
+      <text class="dl" x="346" y="100">the work</text>
+
+      <line class="da-a" x1="452" y1="87" x2="500" y2="87" marker-end="url(#cra)"/>
+      <text class="dla" x="440" y="48">/speckit.taskstoissues</text>
+
+      <rect class="dbox-a" x="506" y="50" width="132" height="74" rx="8" stroke-width="1.4"/>
+      <text class="dm" x="522" y="74">GitHub issues</text>
+      <text class="dl" x="522" y="93">one per task</text>
+      <text class="dl" x="522" y="110">labelled by agent</text>
+
+      <line class="da-a" x1="642" y1="87" x2="674" y2="87" marker-end="url(#cra)"/>
+
+      <rect class="dbox-c" x="680" y="42" width="206" height="90" rx="8" stroke-width="1.4"/>
+      <text class="dm" x="698" y="66">Projects v2 board</text>
+      <text class="dl" x="698" y="85">agent claims &rarr; In progress</text>
+      <text class="dl" x="698" y="102">PR opens &rarr; In review</text>
+      <text class="dl" x="698" y="119">merge &rarr; Done</text>
+
+      <path class="da dash" d="M 783 138 L 783 196 L 389 196 L 389 122" marker-end="url(#cr)"/>
+      <text class="dl" x="470" y="188">/speckit.converge appends what is still missing</text>
+      <text class="dl" x="470" y="222">the loop repeats until the codebase matches the spec</text>
+    </svg>
+    </div>
+    <figcaption><b>Spec to board and back.</b> The return arc is the part people skip. <code>/speckit.converge</code> re-reads the codebase against the spec and appends the gap as new tasks &mdash; so &ldquo;done&rdquo; is measured against the specification rather than against an agent&rsquo;s optimism.</figcaption>
+  </figure>
+
+  <div class="grid g2">
+    <div class="card">
+      <h3>Per-feature command sequence</h3>
+      <ol class="steps" style="margin-top:14px">
+        <li><code>/speckit.specify</code> &mdash; requirements and user stories. No tech talk allowed here.</li>
+        <li><code>/speckit.clarify</code> &mdash; forces the underspecified bits into the open before they become guesses.</li>
+        <li><code>/speckit.plan</code> &mdash; the technical approach, bounded by the constitution.</li>
+        <li><code>/speckit.tasks</code> &mdash; the task list, each item tagged with its owning agent.</li>
+        <li><code>/speckit.taskstoissues</code> &mdash; tasks become GitHub issues on the board.</li>
+        <li><code>/speckit.implement</code> &mdash; agents execute inside their own path boundaries.</li>
+        <li><code>/speckit.converge</code> &mdash; measure code against spec, append the remainder, repeat.</li>
+      </ol>
+    </div>
+    <div class="card">
+      <h3>What goes in the constitution</h3>
+      <p>Written once, then every plan is checked against it. For this project the non-negotiables are:</p>
+      <ul class="clean" style="margin-top:12px">
+        <li><b>Path ownership is absolute.</b> No agent writes outside its allowlist, ever.</li>
+        <li><b>Contracts are generated.</b> Hand-editing <code>packages/contracts</code> is a build failure.</li>
+        <li><b>Tokens are the only source of colour.</b> No literal hex outside <code>packages/tokens</code>.</li>
+        <li><b>Web and native implement the same <code>ui-spec</code> entry</b> or neither ships.</li>
+        <li><b>Auth follows RFC 9700.</b> PKCE on every client, rotation on every refresh.</li>
+        <li><b>No public exposure, ever.</b> Reachable on your LAN and your tailnet, never from the open internet. No Netflix branding, no content you lack rights to.</li>
+        <li><b>No third-party telemetry.</b> Nothing reports usage anywhere. External data is fetched once at setup and committed as a fixture.</li>
+        <li><b>No hardcoded hosts.</b> Every URL comes from env, or the TV and phone break.</li>
+      </ul>
+    </div>
+  </div>
+  </div>
+</section>
+
+<section id="board">
+  <div class="shead"><span class="snum">07</span><h2>OpenProject as the coordination substrate</h2></div>
+  <div class="col sintro">Self-hosted OpenProject 17 in Docker on <code>localhost:8080</code>, already sitting in <code>../openproject-selfhost</code>. It replaces GitHub Projects entirely: local, free, and with a far richer work-package model &mdash; types, parent/child hierarchy, relations and custom fields. <b>OpenProject owns tickets and state. Git owns code and truth.</b> They are never allowed to disagree.</div>
+
+  <div class="stack stack-lg">
+
+  <div class="flag">
+    <div class="eyebrow">The failure mode this section exists to prevent</div>
+    <h3>Handoffs are safe when they are derived, not chosen</h3>
+    <p><em>Free-form</em> agent-to-agent assignment is <b>the number one documented failure mode</b> in multi-agent systems: A hands to B, B hands to C, C hands back to A, and each hop loses context while nobody owns the outcome. Responsibility diffusion is now the dominant failure mode in agentic systems generally, and a shared-state board has the widest blast radius of any coordination pattern &mdash; one poisoned write is inherited globally rather than passed hop by hop.</p>
+    <p><b>But the handoff itself is not the problem.</b> Two properties separate a safe one from a dangerous one, and path ownership already gives you both.</p>
+  </div>
+
+  <div class="tw">
+    <table>
+      <thead><tr><th>&nbsp;</th><th>Dangerous handoff</th><th>Safe handoff</th></tr></thead>
+      <tbody>
+        <tr><td><b>Recipient</b></td><td><em>chosen</em> by the agent &mdash; &ldquo;this feels like B&rsquo;s problem&rdquo;</td><td><b>derived</b> &mdash; the affected path has exactly one owner in <code>OWNERS.yml</code></td></tr>
+        <tr><td><b>Done condition</b></td><td>subjective. Nobody can say when it is finished</td><td><b>objective and machine-checkable</b> &mdash; the test passes</td></tr>
+        <tr><td><b>Direction</b></td><td>any agent to any agent, so a cycle can form</td><td><b>one-way by construction</b> &mdash; qa-agent cannot write <code>src</code>, so it can never receive implementation work back</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note">
+    <div class="eyebrow">The canonical good case</div>
+    <h3>qa-agent finds a bug and routes it to whoever owns the file</h3>
+    <p>A test fails. The failing assertion points at a file, the file sits in a path, the path has one owner. qa-agent isn&rsquo;t <em>picking</em> web-agent &mdash; it is performing the same lookup the router performs. <b>This is the pattern to build</b>, and a bug ticket is the ideal unit of agent-to-agent work precisely because its done condition is a passing test rather than an opinion.</p>
+    <p><b>Three guards keep it honest.</b> <b>1&nbsp;&mdash; Reopen, never re-file.</b> Key the bug to the failing test id and reopen the same work package, or a fix-retest cycle silently produces twenty duplicates; then the handoff counter on that ticket <em>is</em> your loop detector. <b>2&nbsp;&mdash; A bug must cite the acceptance criterion it violates.</b> If qa-agent tested its own reading of the spec and the implementer read it differently, the &ldquo;bug&rdquo; is a spec ambiguity, and the implementer will dutifully break correct code to satisfy a wrong test. A ticket that cannot name a criterion is a spec question, and it routes to <em>you</em>. The spec has authority over correctness, not the test agent. <b>3&nbsp;&mdash; Reproduce twice before filing</b>, or one flaky test generates bugs forever.</p>
+  </div>
+
+  <figure>
+    <div class="figscroll">
+    <svg viewBox="0 0 880 320" role="img" aria-label="A work package declares the paths it touches. The router looks those paths up in OWNERS.yml. If they resolve to exactly one agent it is assigned deterministically; if they resolve to two or more owners the ticket must split into path-scoped children, each of which then routes to a single owner. An agent never chooses a recipient, so handoff loops cannot form.">
+      <defs>
+        <marker id="rr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--ink-3)"/></marker>
+        <marker id="rra" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--accent)"/></marker>
+        <marker id="rrw" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--warn)"/></marker>
+      </defs>
+
+      <rect class="dbox" x="12" y="112" width="182" height="82" rx="9" stroke-width="1.4"/>
+      <text class="dm" x="30" y="140">work package</text>
+      <text class="dl" x="30" y="160">paths: [ ... ]</text>
+      <text class="dl" x="30" y="178">spec: 008-playback</text>
+
+      <line class="da-a" x1="198" y1="152" x2="248" y2="152" marker-end="url(#rra)"/>
+
+      <rect class="dbox-a" x="254" y="112" width="166" height="82" rx="9" stroke-width="1.4"/>
+      <text class="dm" x="272" y="140">router</text>
+      <text class="dl" x="272" y="160">OWNERS.yml lookup</text>
+      <text class="dl" x="272" y="178">pure function of paths</text>
+
+      <line class="da-a" x1="424" y1="136" x2="486" y2="72" marker-end="url(#rra)"/>
+      <text class="dla" x="428" y="104">1 owner</text>
+
+      <line class="da-w" x1="424" y1="170" x2="486" y2="238" marker-end="url(#rrw)"/>
+      <text class="dlw" x="428" y="212">2+ owners</text>
+
+      <rect class="dbox-c" x="492" y="34" width="230" height="72" rx="9" stroke-width="1.4"/>
+      <text class="dm" x="510" y="60">assigned, deterministically</text>
+      <text class="dl" x="510" y="80">same paths &rarr; same agent</text>
+      <text class="dl" x="510" y="97">every single time</text>
+
+      <rect class="dbox-w" x="492" y="212" width="230" height="72" rx="9" stroke-width="1.4"/>
+      <text class="dm" x="510" y="238">must split first</text>
+      <text class="dl" x="510" y="258">one child per owned path</text>
+      <text class="dl" x="510" y="275">max 5 children, depth &le; 2</text>
+
+      <path class="da dash" d="M 726 248 L 790 248 L 790 120 L 726 120" marker-end="url(#rr)"/>
+      <text class="dl" x="736" y="186">children</text>
+      <text class="dl" x="736" y="202">re-route</text>
+
+      <line class="da dash" x1="12" y1="300" x2="868" y2="300"/>
+      <text class="dl" x="12" y="316">Because routing depends only on paths, a ticket can never bounce between two agents &mdash; the loop has nowhere to form.</text>
+    </svg>
+    </div>
+    <figcaption><b>Routing, not assignment.</b> An agent that cannot finish a ticket does not hand it on &mdash; it splits it into path-scoped children, and each child routes deterministically to the single agent that owns those paths. Ping-pong becomes structurally impossible rather than merely discouraged.</figcaption>
+  </figure>
+
+  <div class="tw">
+    <table>
+      <thead><tr><th>Custom field</th><th>Type</th><th>Values</th><th>What it prevents</th></tr></thead>
+      <tbody>
+        <tr><td><b>Agent</b></td><td>list</td><td class="mono">the ten agent names</td><td>Ambiguous ownership. Derived by the router, never typed by an agent</td></tr>
+        <tr><td><b>Paths</b></td><td>text</td><td class="mono">apps/api/oauth/**</td><td>The whole routing model depends on this. A ticket without it cannot be claimed</td></tr>
+        <tr><td><b>Spec</b></td><td>text</td><td class="mono">specs/008-playback/spec.md</td><td>Thin handoffs. The ticket body is the entire bandwidth between agents &mdash; the spec is the rest</td></tr>
+        <tr><td><b>Handoff count</b></td><td>integer</td><td class="mono">0, incremented on split</td><td>Runaway loops. Above 3 the ticket goes <code>Blocked</code> and is assigned to you</td></tr>
+        <tr><td><b>Layer</b></td><td>list</td><td class="mono">api &middot; web &middot; mobile &middot; shared &middot; infra &middot; media</td><td>One tier silently falling behind the others</td></tr>
+        <tr><td><b>Vertical</b></td><td>list</td><td class="mono">the twelve features</td><td>Losing sight of how complete any one feature actually is</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="flag">
+    <div class="eyebrow">Checked, and the answer is no &mdash; but it doesn&rsquo;t matter</div>
+    <h3>One sign-on across OpenProject and fun-world isn&rsquo;t possible on the free edition</h3>
+    <p><b>OpenProject&rsquo;s OIDC provider integration is an Enterprise add-on.</b> The documentation is explicit &mdash; &ldquo;OpenID Connect providers is an Enterprise add-on&rdquo; &mdash; and on Community Edition the configuration button does not even appear. SAML is Enterprise too. So pointing OpenProject at your Keycloak realm is off the table without paying.</p>
+    <p><b>But the thing you actually want does not need SSO.</b> Two requirements got bundled together here, and only one of them is about identity:</p>
+    <ul class="clean" style="margin-top:12px">
+      <li><b>&ldquo;Agents can log tickets automatically&rdquo; &rarr; solved, today, free.</b> Agents authenticate with an <b>API key</b>, not an interactive login. Generate one at My account &rarr; Access tokens, then use it as a bearer token, or via basic auth with the literal username <code>apikey</code> and the token as password. That is all <code>op-cli</code> needs. SSO was never involved.</li>
+      <li><b>&ldquo;One login for me&rdquo; &rarr; genuinely not worth it.</b> SSO&rsquo;s value scales with users &times; applications. You are one person with two apps. You would be buying Enterprise to save yourself one password in a browser keychain.</li>
+    </ul>
+    <p><b>If you want the single-directory experience anyway, for the learning:</b> run <b>LLDAP</b> &mdash; a tiny homelab-favourite LDAP server &mdash; as the one user directory. <b>Basic LDAP authentication is Community Edition</b> in OpenProject (only group <em>synchronisation</em> is Enterprise), so OpenProject authenticates against it directly, and Keycloak federates the same directory for fun-world. One set of credentials, one place to add or remove a user. Not true single sign-on &mdash; you still log into each app &mdash; but one identity, for free.</p>
+  </div>
+
+  <div class="note">
+    <div class="eyebrow">Architecture &mdash; the part worth getting right</div>
+    <h3>Build <code>op-cli</code>, not an MCP server</h3>
+    <p>OpenProject&rsquo;s <b>official MCP server is an Enterprise add-on</b> &mdash; Professional, Premium or Corporate only, so it is not available on the Community Edition you are running. Community MCP servers exist and work against API v3 with an API key.</p>
+    <p><b>Use neither.</b> An MCP server mirrors the API, which hands every agent raw work-package access &mdash; and a mirror <b>cannot refuse an invalid transition</b>. Every invariant above degrades into a suggestion. A thin CLI that owns the integration can reject a hand-off that violates path ownership, enforce the fan-out cap, and increment the loop counter where an agent cannot reach it.</p>
+    <p>You already have this exact pattern in <code>browser-test-agent</code>: a standalone tool living outside every repo, knowing nothing about business logic, driven by an agent through Bash. Do the same again. One API key, one place to enforce the rules &mdash; and <code>openproject-api-client</code> is on PyPI, so it is Python, which is the point.</p>
+  </div>
+
+  <pre><code><em># every agent's first and last action — no agent ever touches the API directly</em>
+<i>op-cli claim</i>    --wp 42 --agent api-agent   <em># refuses if paths aren't owned by api-agent</em>
+<i>op-cli split</i>    --wp 42 --by-paths          <em># children derived from OWNERS.yml, never chosen</em>
+<i>op-cli handoff</i>  --wp 42                     <em># increments count; at &gt;3 → Blocked, assigned to you</em>
+<i>op-cli done</i>     --wp 42 --pr 17             <em># links the PR, moves to In review</em>
+
+<em># specs become work packages directly — one source of truth, no GitHub Issues mirror</em>
+<i>op-cli sync</i> specs/008-playback/tasks.md</code></pre>
+
+  <div class="note">
+    <div class="eyebrow">Where git still fits</div>
+    <h3>OpenProject links pull requests via <code>OP#123</code></h3>
+    <p>Put <code>OP#42</code> in a pull request description and OpenProject shows that PR &mdash; and the state of its GitHub Actions &mdash; on a tab of work package 42. The relationship is n:m, so one ticket can carry several PRs. That is the whole bridge: <b>tickets and state in OpenProject, code and history in git</b>, joined by a string in a PR body.</p>
+    <p>Note this makes Spec Kit&rsquo;s <code>/speckit.taskstoissues</code> redundant &mdash; it targets GitHub Issues, and mirroring two ticket systems is how they drift apart. <code>op-cli sync</code> reads <code>tasks.md</code> straight into work packages instead.</p>
+  </div>
+
+  <div class="flag">
+    <div class="eyebrow">On &ldquo;and keep working&rdquo;</div>
+    <h3>Autonomy between two gates, not unbounded</h3>
+    <p>Your own <code>i18n-ticket-bot</code> already encodes the right rule: it opens a pull request, <b>never a direct push</b>. Apply it here. Agents run autonomously <em>between</em> two human gates &mdash; <b>you approve the spec, you approve the merge</b> &mdash; and everything in between is theirs. An overnight loop with no gate does not produce a finished feature; it produces a large volume of plausible-looking code that all has to be read anyway.</p>
+    <p><b>Also throttle concurrency.</b> Agent sprawl &mdash; too many agents with overlapping responsibilities &mdash; is a top-ranked failure mode. Ten path boundaries in <code>OWNERS.yml</code> is cheap and is what makes routing work; ten agents <em>running at once</em> is a lot of autonomous spend for one person. Define all ten, run three or four, turn it up once the loop has proven itself.</p>
+  </div>
+  </div>
+</section>
+
+<section id="home">
+  <div class="shead"><span class="snum">07b</span><h2>The home setup: four TVs, two clients</h2></div>
+  <div class="col sintro">Your laptop is the server. Three of your four TVs run Android, so <b>one build from the Expo app covers Fire TV, Google TV and Android TV</b>. LG webOS is an HTML/JS platform, so it gets the Next.js app. The two clients already in the plan cover everything &mdash; no third codebase.</div>
+
+  <div class="stack stack-lg">
+  <div class="note">
+    <div class="eyebrow">An unplanned dividend</div>
+    <h3>Choosing two frontends just paid off in a way neither of us predicted</h3>
+    <p>You picked Next.js&nbsp;+&nbsp;Expo over a single universal Expo app for learning breadth. That decision now covers <b>both TV families</b>: React Native reaches the Android-based TVs, and the web app reaches webOS. A universal-Expo-only stack would have left LG with nothing good.</p>
+  </div>
+
+  <div class="tw">
+    <table>
+      <thead><tr><th>Device</th><th>Client</th><th>How it gets there</th><th>Watch out for</th></tr></thead>
+      <tbody>
+        <tr><td><b>Fire TV</b></td><td><span class="pill ts">Expo</span> TV build</td><td><code>@react-native-tvos/config-tv</code>, built locally, <code>adb install</code></td><td>Amazon publishes RN guidance and a multi-TV sample. Easiest target you have</td></tr>
+        <tr><td><b>Google TV</b></td><td><span class="pill ts">Expo</span> TV build</td><td>same build, <code>adb install</code></td><td>&mdash;</td></tr>
+        <tr><td><b>Android TV</b></td><td><span class="pill ts">Expo</span> TV build</td><td>same build, <code>adb install</code></td><td>Behaves like an Android phone, so <code>expo-router</code> works and reuse is high</td></tr>
+        <tr><td><b>LG webOS</b></td><td><span class="pill ts">Next.js</span></td><td>TV browser first; package with <code>ares-*</code> CLI only if the browser disappoints</td><td>Dev-mode sideloading expires roughly every 50 hours without a dev account. Try the browser first</td></tr>
+        <tr><td><b>Phone</b></td><td><span class="pill ts">Expo</span></td><td>dev build over LAN or tailnet</td><td>Also your approval device for TV sign-in</td></tr>
+        <tr><td><b>Laptop</b></td><td><span class="pill py">Django</span> + HLS</td><td>Docker Compose, bound <code>0.0.0.0</code></td><td>Windows Firewall blocks inbound LAN by default &mdash; open the ports</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="grid g2">
+    <div class="card">
+      <div class="eyebrow">Networking</div>
+      <h3>Tailscale, and it fixes an earlier problem</h3>
+      <p>A private WireGuard mesh: only devices you enrol can connect, traffic is peer-to-peer, nothing is publicly exposed and no router ports are opened. Free for personal use, and it runs on the laptop, the phone and the Android TVs.</p>
+      <p><b>MagicDNS retires the brittle LAN-IP constraint from &sect;03.</b> Instead of baking <code>192.168.1.x</code> into env and rewriting it whenever DHCP moves, clients use a stable hostname that resolves identically at home and away. <b>Exception:</b> LG webOS cannot join a tailnet, so that one TV stays LAN-only &mdash; which is fine, since it never leaves the house.</p>
+    </div>
+    <div class="card">
+      <div class="eyebrow">The honest cost</div>
+      <h3>TV is a third interaction model, not a re-skin</h3>
+      <p>Your &ldquo;same UI, only colours change&rdquo; guarantee <b>does not extend to TV</b>, and pretending otherwise would cost you a rewrite. D-pad focus management, visible focus rings, 10-foot type sizes, overscan-safe margins, and no hover at all.</p>
+      <p>The consolation is real though: <b>a grid of poster rails is close to the ideal D-pad layout</b> &mdash; left/right within a row, up/down between rows maps onto a remote almost perfectly. It is the detail pages and the player controls that need genuine rework.</p>
+    </div>
+  </div>
+  </div>
+</section>
+
+<section id="verticals">
+  <div class="shead"><span class="snum">08</span><h2>Twelve verticals, in dependency order</h2></div>
+  <div class="col sintro">Each row is one Spec Kit spec directory, one board Vertical value, and one epic. The order is a real dependency chain, not a preference &mdash; nothing below can start before the rows it depends on are merged.</div>
+  <div class="tw stack">
+    <table>
+      <thead><tr><th>#</th><th>Vertical</th><th>Lead agent</th><th>Depends on</th><th>What &ldquo;done&rdquo; means</th></tr></thead>
+      <tbody>
+        <tr><td class="mono tnum">001</td><td><b>Platform &amp; CI</b></td><td><span class="own">board-agent</span></td><td>&mdash;</td><td>Compose up, all three apps boot, phone reaches the API over LAN, both gates green</td></tr>
+        <tr><td class="mono tnum">002</td><td><b>Design system &amp; theming</b></td><td><span class="own">design-system</span></td><td>001</td><td>Tokens emit Tailwind theme and NativeWind preset; three themes swap colour only</td></tr>
+        <tr><td class="mono tnum">003</td><td><b>Content model &amp; catalog</b></td><td><span class="own">data-agent</span></td><td>001</td><td>Titles, seasons, episodes, genres, artwork &mdash; modelled, seeded, and editable in Django admin</td></tr>
+        <tr><td class="mono tnum">004</td><td><b>Identity &amp; profiles</b></td><td><span class="own">auth-agent</span></td><td>003</td><td>OAuth 2.1 login on web and device, up to 5 profiles, kids mode, PIN lock</td></tr>
+        <tr><td class="mono tnum">005</td><td><b>Media pipeline</b></td><td><span class="own">media-agent</span></td><td>003</td><td>Four-rung HLS ladder built by ffmpeg, subtitles muxed, signed URLs issued</td></tr>
+        <tr><td class="mono tnum">006</td><td><b>Browse &amp; discovery</b></td><td><span class="own">web-agent</span> <span class="own">mobile-agent</span></td><td>002 003 004</td><td>Billboard hero, lazy rails, hover preview on web, snap carousel on native</td></tr>
+        <tr><td class="mono tnum">007</td><td><b>Title detail &amp; My List</b></td><td><span class="own">web-agent</span> <span class="own">mobile-agent</span></td><td>006</td><td>Episode picker, similar titles, add and remove syncing across devices</td></tr>
+        <tr><td class="mono tnum">008</td><td><b>Playback</b></td><td><span class="own">media-agent</span></td><td>005 007</td><td>ABR switching, subtitle and audio tracks, next-episode, keyboard shortcuts</td></tr>
+        <tr><td class="mono tnum">009</td><td><b>Continue watching</b></td><td><span class="own">api-agent</span></td><td>008</td><td>Pause on your laptop, resume on your phone within seconds. The one that proves the system</td></tr>
+        <tr><td class="mono tnum">010</td><td><b>Search</b></td><td><span class="own">api-agent</span></td><td>003 006</td><td>Postgres full-text with <code>pg_trgm</code> fuzzy matching, typeahead under 100&nbsp;ms</td></tr>
+        <tr><td class="mono tnum">011</td><td><b>Personalised rows</b></td><td><span class="own">api-agent</span></td><td>009 010</td><td>Rails ranked from watch history, streamed into the page as RSC</td></tr>
+        <tr><td class="mono tnum">012</td><td><b>Downloads &amp; ingest</b></td><td><span class="own">mobile-agent</span></td><td>008</td><td>Offline HLS on device, plus an upload-and-transcode action wired into Django admin</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="note stack">
+    <div class="eyebrow">The Django dividend</div>
+    <h3>Vertical 012 is roughly half the size it was</h3>
+    <p>With FastAPI, &ldquo;admin and ingest&rdquo; meant building a content-management UI from scratch. Django admin gives you the CRUD, list filters, search, inline episode editing and permissions for free once <code>data-agent</code> registers the models &mdash; so 012 shrinks to a custom admin action that shells out to the ffmpeg pipeline. That saving is the entire reason Django beat FastAPI here.</p>
+  </div>
+</section>
+
+<section id="auth">
+  <div class="shead"><span class="snum">09</span><h2>Auth, built in two phases so you learn it</h2></div>
+  <div class="col sintro">This is the part you said you wanted to understand, so it gets built rather than installed. The target is RFC&nbsp;9700 &mdash; the IETF&rsquo;s current best practice, which made PKCE mandatory for <em>every</em> client type and refresh-token rotation standard rather than optional.</div>
+
+  <div class="stack stack-lg">
+  <figure>
+    <div class="figscroll">
+    <svg viewBox="0 0 880 452" role="img" aria-label="Sequence diagram: the client generates a PKCE verifier and sends its S256 challenge to the authorize endpoint, receives a code, exchanges code plus verifier at the token endpoint for a short-lived access JWT and a rotating refresh token, calls the resource API which validates the JWT against JWKS, and on refresh receives a new token while the old is revoked. Replaying a revoked refresh token revokes the entire token family.">
+      <defs>
+        <marker id="sr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--ink-3)"/></marker>
+        <marker id="sra" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--accent)"/></marker>
+        <marker id="srw" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--warn)"/></marker>
+      </defs>
+
+      <rect class="dbox" x="20" y="14" width="182" height="50" rx="8" stroke-width="1.3"/>
+      <text class="dm" x="38" y="38">Client</text>
+      <text class="dl" x="38" y="55">Next.js browser / Expo app</text>
+      <line class="lane" x1="111" y1="66" x2="111" y2="392"/>
+
+      <rect class="dbox-c" x="342" y="14" width="182" height="50" rx="8" stroke-width="1.3"/>
+      <text class="dm" x="360" y="38">Authorization server</text>
+      <text class="dl" x="360" y="55">Django, then Keycloak</text>
+      <line class="lane" x1="433" y1="66" x2="433" y2="392"/>
+
+      <rect class="dbox-c" x="664" y="14" width="182" height="50" rx="8" stroke-width="1.3"/>
+      <text class="dm" x="682" y="38">Resource API</text>
+      <text class="dl" x="682" y="55">catalog &middot; progress</text>
+      <line class="lane" x1="755" y1="66" x2="755" y2="392"/>
+
+      <text class="dl" x="20" y="96">1</text>
+      <line class="da" x1="111" y1="106" x2="427" y2="106" marker-end="url(#sr)"/>
+      <text class="dl" x="128" y="99">/authorize + code_challenge (S256)</text>
+
+      <text class="dl" x="20" y="140">2</text>
+      <line class="da" x1="433" y1="150" x2="117" y2="150" marker-end="url(#sr)"/>
+      <text class="dl" x="128" y="143">302 back with one-time code</text>
+
+      <text class="dl" x="20" y="184">3</text>
+      <line class="da-a" x1="111" y1="194" x2="427" y2="194" marker-end="url(#sra)"/>
+      <text class="dla" x="128" y="187">/token: code + code_verifier</text>
+
+      <text class="dl" x="20" y="228">4</text>
+      <line class="da-a" x1="433" y1="238" x2="117" y2="238" marker-end="url(#sra)"/>
+      <text class="dla" x="128" y="231">access JWT (10 min) + refresh (rotating)</text>
+
+      <text class="dl" x="20" y="272">5</text>
+      <line class="da" x1="111" y1="282" x2="749" y2="282" marker-end="url(#sr)"/>
+      <text class="dl" x="128" y="275">Authorization: Bearer &mdash; validated against JWKS, no DB hit</text>
+
+      <text class="dl" x="20" y="316">6</text>
+      <line class="da" x1="111" y1="326" x2="427" y2="326" marker-end="url(#sr)"/>
+      <text class="dl" x="128" y="319">/token: refresh &rarr; new pair issued, old one revoked</text>
+
+      <text class="dl" x="20" y="360">7</text>
+      <line class="da-w dash" x1="111" y1="370" x2="427" y2="370" marker-end="url(#srw)"/>
+      <text class="dlw" x="128" y="363">a revoked refresh replayed &rarr; revoke the whole token family</text>
+
+      <line class="da dash" x1="20" y1="404" x2="860" y2="404"/>
+      <text class="dl" x="20" y="424">Token storage diverges by platform, and only here:</text>
+      <text class="dm" x="20" y="443" style="font-size:11px">web &rarr; httpOnly &middot; SameSite=Lax cookie, readable by RSC</text>
+      <text class="dm" x="440" y="443" style="font-size:11px">native &rarr; expo-secure-store (Keychain / Keystore)</text>
+    </svg>
+    </div>
+    <figcaption><b>Authorization Code with PKCE and rotation.</b> Steps 1&ndash;6 are the standard flow. Step&nbsp;7 is the part that gets skipped and matters most: tracking refresh tokens as a family, so a replayed token burns the whole family rather than letting an attacker hold a valid session quietly. The httpOnly cookie on web is also what solves the RSC token-handoff constraint from &sect;03.</figcaption>
+  </figure>
+
+  <div class="note">
+    <div class="eyebrow">Terminology, because these get conflated</div>
+    <h3>OAuth is the protocol. Passkeys are the credential. They compose.</h3>
+    <p><b>OAuth 2.1</b> is <em>authorization</em> &mdash; delegated access to a resource. <b>OIDC</b> is the <em>authentication</em> layer on top of it that tells you who the user is. <b>Passkeys / WebAuthn</b> are the <em>credential</em> &mdash; they replace the password <em>inside</em> the flow, they don&rsquo;t replace the flow. And <b>Keycloak, Authentik, Pocket ID, Hanko</b> are software that implements all of the above.</p>
+    <p>So &ldquo;should I use OAuth or the popular new thing?&rdquo; is a false choice: the popular new thing is passkeys, and it slots into the OAuth flow you are already building. WebAuthn is supported in every major browser as of 2026, and conditional UI &mdash; passkey autofill in the browser&rsquo;s normal credential dropdown &mdash; became genuinely cross-browser once Firefox 122 shipped it. <b>Build password + TOTP first, then add passkeys as a second credential type.</b> Same flow, new authenticator.</p>
+  </div>
+
+  <div class="flag">
+    <div class="eyebrow">Your TVs change the design &mdash; and this is a gift</div>
+    <h3>You now need the Device Authorization Grant (RFC 8628)</h3>
+    <p>A TV has no keyboard. Typing a password with a D-pad is miserable, and typing a <em>passkey</em> is impossible. This is exactly the problem <b>RFC&nbsp;8628</b> exists for, and it is precisely what Netflix, YouTube and Disney+ do on your TV today: the device shows a short code and a URL, you approve it on your phone, and the device polls until it is authorised.</p>
+    <p><b>That means fun-world&rsquo;s auth server needs three grants, not one</b> &mdash; and each is driven by a real client you actually have, which makes this a genuinely good curriculum rather than an academic exercise.</p>
+    <div class="tw" style="margin-top:14px">
+      <table>
+        <thead><tr><th>Grant</th><th>Spec</th><th>Which client</th><th>Why that one</th></tr></thead>
+        <tbody>
+          <tr><td><b>Authorization Code + PKCE</b></td><td class="mono">RFC 7636</td><td>Next.js web, Expo phone</td><td>Mandatory for every client type under OAuth 2.1. Has a browser and a keyboard</td></tr>
+          <tr><td><b>Device Authorization</b></td><td class="mono">RFC 8628</td><td>Fire TV, Google TV, Android TV, LG webOS</td><td>No keyboard. Approve on the phone instead</td></tr>
+          <tr><td><b>Refresh + rotation</b></td><td class="mono">RFC 9700</td><td>all of them</td><td>Single-use refresh, family revocation on replay</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <figure>
+    <div class="figscroll">
+    <svg viewBox="0 0 880 300" role="img" aria-label="Device Authorization Grant: the TV posts to the device-code endpoint and receives a user code and verification URI, which it displays. The user opens that URI on their phone, enters the code and approves. Meanwhile the TV polls the token endpoint at the server-specified interval, receiving authorization_pending until approval, then a token pair.">
+      <defs>
+        <marker id="dv" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--ink-3)"/></marker>
+        <marker id="dva" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--accent)"/></marker>
+      </defs>
+
+      <rect class="dbox" x="16" y="14" width="176" height="48" rx="8" stroke-width="1.3"/>
+      <text class="dm" x="34" y="38">TV client</text>
+      <text class="dl" x="34" y="54">no keyboard</text>
+      <line class="lane" x1="104" y1="64" x2="104" y2="272"/>
+
+      <rect class="dbox-c" x="352" y="14" width="176" height="48" rx="8" stroke-width="1.3"/>
+      <text class="dm" x="370" y="38">auth server</text>
+      <text class="dl" x="370" y="54">Django /device</text>
+      <line class="lane" x1="440" y1="64" x2="440" y2="272"/>
+
+      <rect class="dbox-a" x="688" y="14" width="176" height="48" rx="8" stroke-width="1.3"/>
+      <text class="dm" x="706" y="38">your phone</text>
+      <text class="dl" x="706" y="54">has a keyboard</text>
+      <line class="lane" x1="776" y1="64" x2="776" y2="272"/>
+
+      <line class="da" x1="104" y1="94" x2="434" y2="94" marker-end="url(#dv)"/>
+      <text class="dl" x="120" y="87">1 &nbsp;POST /device/code</text>
+
+      <line class="da" x1="440" y1="126" x2="110" y2="126" marker-end="url(#dv)"/>
+      <text class="dl" x="120" y="119">2 &nbsp;user_code WXYZ-1234 &middot; verification_uri &middot; interval 5s</text>
+
+      <line class="da-a" x1="104" y1="160" x2="770" y2="160" marker-end="url(#dva)"/>
+      <text class="dla" x="120" y="153">3 &nbsp;TV displays the code &mdash; you type it on your phone and approve</text>
+
+      <path class="da dash" d="M 116 196 C 190 178, 190 218, 122 200" marker-end="url(#dv)"/>
+      <text class="dl" x="200" y="196">4 &nbsp;meanwhile the TV polls POST /token every 5s</text>
+      <text class="dl" x="200" y="212">grant_type=...:device_code &rarr; authorization_pending</text>
+
+      <line class="da-a" x1="440" y1="248" x2="110" y2="248" marker-end="url(#dva)"/>
+      <text class="dla" x="120" y="241">5 &nbsp;once approved: access JWT + rotating refresh</text>
+
+      <line class="da dash" x1="16" y1="278" x2="864" y2="278"/>
+      <text class="dl" x="16" y="294">The polling interval is server-dictated. Ignore it and you get slow_down &mdash; back off, do not tighten the loop.</text>
+    </svg>
+    </div>
+    <figcaption><b>Device Authorization Grant.</b> The TV never handles a credential &mdash; it only ever holds a device code and, eventually, tokens. The secret is typed on a device that has a keyboard and a browser. This is why every streaming service works this way, and implementing it yourself is the most directly useful auth thing on this plan.</figcaption>
+  </figure>
+
+  <div class="grid g2">
+    <div class="card">
+      <div class="eyebrow">Phase 1 &mdash; you write it</div>
+      <h3>Django as its own authorization server</h3>
+      <p>Roughly two weeks of real learning. You implement <code>/authorize</code>, <code>/token</code>, <code>/jwks.json</code> and <code>/revoke</code> by hand; sign RS256 JWTs; store refresh tokens hashed with a family id; and get reuse detection working. Django&rsquo;s user model and Argon2 hasher give you a solid base to build on rather than a black box.</p>
+      <p>By the end you will know why every one of those pieces exists &mdash; which no managed service teaches you.</p>
+    </div>
+    <div class="card">
+      <div class="eyebrow">Phase 2 &mdash; you replace it</div>
+      <h3>Keycloak in Docker, same app code</h3>
+      <p>Point the issuer at a Keycloak realm instead. Django stops issuing tokens and becomes a pure resource server validating JWTs against a remote JWKS. You get a local realm, OIDC discovery, an admin console and account management for free. <b>Not social login</b> &mdash; external identity providers need egress, so they are out under the zero-egress rule.</p>
+      <p>The instructive part is how little application code changes &mdash; and Keycloak is far and away the most employable IdP to have used. Budget about 1&nbsp;GB of RAM in Compose.</p>
+    </div>
+  </div>
+  </div>
+</section>
+
+<section id="video">
+  <div class="shead"><span class="snum">10</span><h2>Video, at zero cost and still real</h2></div>
+  <div class="col sintro">Blender Foundation&rsquo;s open movies are CC-BY, genuinely 4K, and ship with real subtitle tracks &mdash; so you get a legitimate multi-bitrate pipeline with no licensing problem and no bill.</div>
+
+  <div class="stack stack-lg">
+  <div class="grid g3">
+    <div class="card">
+      <div class="eyebrow">Source</div>
+      <h3>Five open movies</h3>
+      <p>Big Buck Bunny, Sintel, Tears of Steel, Cosmos Laundromat, Elephants Dream. Enough distinct titles to make rails, search and My List feel like a real catalog.</p>
+    </div>
+    <div class="card">
+      <div class="eyebrow">Transcode</div>
+      <h3>Four-rung ladder</h3>
+      <p>1080p, 720p, 480p, 360p in H.264 with AAC-LC. CMAF fMP4, 6&nbsp;s segments, keyframes forced every 2&nbsp;s so ABR switching is smooth rather than stuttery.</p>
+    </div>
+    <div class="card">
+      <div class="eyebrow">Serve</div>
+      <h3>Caddy, off local disk</h3>
+      <p>A Caddy container in Compose serving <code>./media</code> with range requests and CORS. Bound to the LAN IP, not localhost, or the phone gets audio and no video.</p>
+    </div>
+  </div>
+
+  <pre><code><em># tools/media/ladder.sh — one rung, the shape the rest follow</em>
+ffmpeg -i "$SRC" \
+  -c:v libx264 -preset veryfast -profile:v main \
+  -b:v <b>2800k</b> -maxrate 2996k -bufsize 4200k -vf "scale=-2:<b>720</b>" \
+  <i>-g 48 -keyint_min 48 -sc_threshold 0</i>   <em># 2s keyframes @24fps — required for clean ABR</em> \
+  -c:a aac -b:a 128k -ac 2 \
+  -f hls -hls_time 6 -hls_playlist_type vod \
+  -hls_segment_type fmp4 -hls_list_size 0 \
+  "$OUT/720p/index.m3u8"</code></pre>
+
+  <div class="note">
+    <div class="eyebrow">The bit you would have paid Mux to hide</div>
+    <h3>Signed playback URLs, written by you</h3>
+    <p>Django issues a short-lived HMAC-signed token bound to <code>(profile_id, title_id, expiry)</code>, and Caddy validates it before serving the master playlist. That is essentially what Cloudflare Stream&rsquo;s signed URLs do &mdash; and worth knowing that Stream offers <b>no studio DRM</b> either, only signed URLs and tokens. For content like this you give up nothing by building it yourself, and you learn the mechanism.</p>
+  </div>
+  </div>
+</section>
+
+<section id="theming">
+  <div class="shead"><span class="snum">11</span><h2>Same UI, colours change &mdash; made mechanical</h2></div>
+  <div class="col sintro">You asked for one UI across web and mobile with only colour varying. With two separate codebases that only holds if the build enforces it. Two mechanisms do the work: a single token source that emits both platform formats, and a <code>ui-spec</code> entry both implementations must satisfy.</div>
+
+  <div class="stack stack-lg">
+  <figure>
+    <div class="figscroll">
+    <svg viewBox="0 0 880 268" role="img" aria-label="One tokens source file builds into a Tailwind v4 theme for Next.js and a NativeWind preset for Expo. A separate themes layer overrides only the colour ramp, leaving spacing, type and radii untouched on both platforms.">
+      <defs>
+        <marker id="tr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--ink-3)"/></marker>
+        <marker id="tra" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--accent)"/></marker>
+      </defs>
+
+      <rect class="dbox-a" x="14" y="76" width="180" height="94" rx="9" stroke-width="1.4"/>
+      <text class="dm" x="32" y="104">tokens/base.json</text>
+      <text class="dl" x="32" y="124">spacing &middot; radii &middot; type</text>
+      <text class="dl" x="32" y="141">motion &middot; elevation</text>
+      <text class="dl" x="32" y="160">the shape of everything</text>
+
+      <rect class="dbox-c" x="14" y="188" width="180" height="62" rx="9" stroke-width="1.4"/>
+      <text class="dm" x="32" y="212">themes/*.json</text>
+      <text class="dl" x="32" y="232">colour ramp only</text>
+
+      <line class="da-a" x1="198" y1="122" x2="252" y2="122" marker-end="url(#tra)"/>
+      <path class="da" d="M 198 216 L 268 216 L 268 152" marker-end="url(#tr)"/>
+
+      <rect class="dbox" x="258" y="94" width="140" height="58" rx="9" stroke-width="1.4"/>
+      <text class="dm" x="274" y="118">build</text>
+      <text class="dl" x="274" y="137">one script, two out</text>
+
+      <line class="da-a" x1="402" y1="108" x2="452" y2="72" marker-end="url(#tra)"/>
+      <line class="da-a" x1="402" y1="138" x2="452" y2="176" marker-end="url(#tra)"/>
+
+      <rect class="dbox" x="458" y="40" width="192" height="66" rx="9" stroke-width="1.4"/>
+      <text class="dm" x="476" y="64">theme.css</text>
+      <text class="dl" x="476" y="83">@theme vars &middot; Tailwind v4</text>
+
+      <rect class="dbox" x="458" y="150" width="192" height="66" rx="9" stroke-width="1.4"/>
+      <text class="dm" x="476" y="174">preset.ts</text>
+      <text class="dl" x="476" y="193">NativeWind v5</text>
+
+      <line class="da" x1="654" y1="73" x2="700" y2="73" marker-end="url(#tr)"/>
+      <line class="da" x1="654" y1="183" x2="700" y2="183" marker-end="url(#tr)"/>
+
+      <rect class="dbox" x="706" y="46" width="160" height="54" rx="9" stroke-width="1.4"/>
+      <text class="dm" x="722" y="70">apps/web</text>
+      <text class="dl" x="722" y="88">Next.js 16</text>
+
+      <rect class="dbox" x="706" y="156" width="160" height="54" rx="9" stroke-width="1.4"/>
+      <text class="dm" x="722" y="180">apps/mobile</text>
+      <text class="dl" x="722" y="198">Expo 57</text>
+
+      <line class="da dash" x1="450" y1="232" x2="450" y2="252"/>
+      <text class="dl" x="458" y="248">identical class vocabulary on both sides &mdash; bg-surface, p-4, rounded-card</text>
+    </svg>
+    </div>
+    <figcaption><b>One source, two formats, colour isolated.</b> Spacing, type, radii and motion live in <code>base.json</code> and can only change in one place. A theme file may override the colour ramp and nothing else &mdash; so swapping brand or platform colours physically cannot change layout.</figcaption>
+  </figure>
+
+  <div class="grid g2">
+    <div class="card">
+      <h3>The lint rule that makes it stick</h3>
+      <p>A literal hex value anywhere outside <code>packages/tokens</code> fails the build, on both platforms. Without this, colour leaks into components within about a week and the guarantee is gone.</p>
+    </div>
+    <div class="card">
+      <h3>What <code>ui-spec</code> actually contains</h3>
+      <p>Not code &mdash; a contract per component. Props, every state, dimensions in token units, focus and loading behaviour. <code>web-agent</code> and <code>mobile-agent</code> each implement it natively, and <code>qa-agent</code> tests both against the same entry.</p>
+    </div>
+  </div>
+  </div>
+</section>
+
+<section id="order">
+  <div class="shead"><span class="snum">12</span><h2>Build order</h2></div>
+  <div class="col sintro">Verticals 001&ndash;002 are scaffolding; everything after ships something you can see. The call worth defending: the walking skeleton comes before feature depth, because it proves the agent boundaries and the board loop work before ten agents are running against them.</div>
+  <div class="tw stack">
+    <table>
+      <thead><tr><th>Phase</th><th>Verticals</th><th>What exists at the end</th></tr></thead>
+      <tbody>
+        <tr><td><b>0 &middot; Bootstrap</b></td><td class="mono">&mdash;</td><td>Repo, Spec Kit, constitution, ten agent definitions, board with six fields, Compose running Postgres and Caddy</td></tr>
+        <tr><td><b>1 &middot; Skeleton</b></td><td class="mono">001 002 003</td><td>One seeded title renders on web and on your phone from real generated contracts, editable in Django admin. Both gates green. The architecture is proven.</td></tr>
+        <tr><td><b>2 &middot; Identity</b></td><td class="mono">004</td><td>Log in on both clients against your own OAuth 2.1 server. Profiles, kids mode, PIN.</td></tr>
+        <tr><td><b>3 &middot; Watch</b></td><td class="mono">005 006 007 008</td><td>Browse a real catalog and watch actual adaptive video on laptop and phone. The milestone that feels like the product.</td></tr>
+        <tr><td><b>4 &middot; Continuity</b></td><td class="mono">009 010 011</td><td>Pause on the laptop, resume on the phone. Search and personalised rails.</td></tr>
+        <tr><td><b>5 &middot; Depth</b></td><td class="mono">012 + Keycloak swap</td><td>Offline downloads, admin ingest, and the identity provider swapped out underneath a running app.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="go">
+  <div class="shead"><span class="snum">13</span><h2>Phase 0, exactly</h2></div>
+  <div class="col sintro">Everything below runs on what you already have: Node&nbsp;22.14, uv&nbsp;0.9.15, Python&nbsp;3.13, git&nbsp;2.48 and gh&nbsp;2.97. The only new requirement is Docker Desktop.</div>
+  <div class="stack">
+  <pre><code><em># 1 — repo and spec-driven scaffolding</em>
+git init &amp;&amp; gh repo create fun-world --private --source=.
+uv tool install specify-cli --from git+https://github.com/github/spec-kit.git
+<i>specify init . --integration claude</i>        <em># writes .specify/, memory/, specs/</em>
+
+<em># 2 — the constitution, before any code exists</em>
+<i>/speckit.constitution</i>                       <em># the seven non-negotiables from §06</em>
+
+<em># 3 — monorepo skeleton, both toolchains side by side</em>
+pnpm init &amp;&amp; pnpm add -Dw turbo
+uv init apps/api &amp;&amp; uv add --project apps/api django django-ninja psycopg argon2-cffi
+uv run --project apps/api django-admin startproject config .
+
+<em># 4 — the ten agents, each with its path allowlist in frontmatter</em>
+<em>#    .claude/agents/{contract-keeper,design-system,api-agent,auth-agent,</em>
+<em>#                    data-agent,web-agent,mobile-agent,media-agent,qa-agent,board-agent}.md</em>
+
+<em># 5 — OpenProject: already cloned at ../openproject-selfhost. Three .env fixes first</em>
+<em>#     (done — backed up as .env.bak-*). It was configured for a Cloudflare Tunnel</em>
+<em>#     that no longer applies now this is local-only:</em>
+OPENPROJECT_HOST__NAME=localhost:8080   <em># was REPLACE_WITH_YOUR_DOMAIN</em>
+OPENPROJECT_HTTPS=false                 <em># was true → ERR_SSL_PROTOCOL_ERROR locally</em>
+COLLABORATIVE_SERVER_URL=ws://localhost:8080/hocuspocus   <em># was absent → wss:// to a dead host</em>
+
+cd ../openproject-selfhost &amp;&amp; <i>docker compose up -d --build</i>
+<em># then: http://localhost:8080 — CHANGE THE admin/admin PASSWORD BEFORE ANYTHING ELSE</em>
+<em># then: My account → Access tokens → API key, into op-cli's env</em>
+
+<em># 6 — find your LAN IP now, before anything hardcodes localhost</em>
+<i>ipconfig | findstr IPv4</i>                     <em># goes into .env as API_HOST — see §03</em>
+
+<em># 7 — first real vertical</em>
+<i>/speckit.specify</i> Platform and CI: compose up, all three apps boot, phone reaches the API</code></pre>
+
+  <div class="flag">
+    <div class="eyebrow">Found while starting your stack &mdash; act on this</div>
+    <h3>A <code>cloudflared</code> tunnel was in the default compose set, with a live token</h3>
+    <p><code>docker-compose.override.yml</code> defines a <code>cloudflared</code> service running <code>tunnel --no-autoupdate run</code>, and <code>CF_TUNNEL_TOKEN</code> is populated in <code>.env</code>. It carried no profile, so <b>a plain <code>docker compose up</code> publishes this box to the public internet</b> &mdash; and OpenProject&rsquo;s first boot creates <code>admin</code>/<code>admin</code>. An internet-reachable admin panel with default credentials, on a board ten agents can write to.</p>
+    <p><b>Fixed:</b> the service now sits behind a <code>tunnel</code> profile (override backed up alongside), so it is excluded from the default <code>up</code>. Exposing the box is now a deliberate act: <code>docker compose --profile tunnel up -d</code>. <b>Still yours to do:</b> change the admin password on first login, and revoke that tunnel token if the Cloudflare hostname it points at is no longer one you control.</p>
+  </div>
+
+  <div class="note">
+    <div class="eyebrow">One loose end</div>
+    <h3>The Sanity MCP server is connected but not authorized</h3>
+    <p>Sanity is attached to this session but can&rsquo;t run &mdash; and it no longer fits anyway. It&rsquo;s a hosted service, which contradicts the local-only constraint, and Django admin now covers the content-management job it would have done. <b>No action needed.</b> Noted only so it doesn&rsquo;t look like an oversight.</p>
+  </div>
+  </div>
+</section>
+
+</main>
+
+<footer class="wrap">
+  <div class="col">Versions and constraints verified against release notes and vendor documentation in August 2026: Next.js 16, Expo SDK 57 (RN 0.86.2), Django 6.0.1, django-ninja, NativeWind v5 preview, expo-video 57.0.2, RFC 9700, GitHub Spec Kit, and the Projects v2 API. Where a limit is stated as a blocker &mdash; the Status-field API gap, the LAN addressing problem &mdash; it came from vendor documentation or from how the runtime actually behaves, not from memory.</div>
+</footer>
