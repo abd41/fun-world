@@ -1,0 +1,151 @@
+#!/usr/bin/env bash
+# Fun World — bring the whole system up from a clean checkout.
+#
+# One command (FR-012), idempotent, and safe to re-run. It is the project's
+# front door and what SC-005a tests: a CI job runs this on a machine that has
+# nothing installed, because this laptop can never answer "does it work from
+# clean" — it already has everything.
+#
+# Order is chosen so failures are actionable rather than merely correct:
+# the toolchain check runs first so a missing tool reports itself in three
+# seconds with an install hint, instead of thirty seconds later as an obscure
+# "command not found" inside a subprocess.
+
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT"
+
+START=$SECONDS
+ENV_FILE="$ROOT/.env"
+
+say()  { printf '\n\033[1m==> %s\033[0m\n' "$1"; }
+ok()   { printf '    \033[32mok\033[0m   %s\n' "$1"; }
+info() { printf '         %s\n' "$1"; }
+die()  { printf '\n\033[31mFAILED\033[0m %s\n\n' "$1" >&2; exit 1; }
+
+# ---------------------------------------------------------------------------
+say "1/8  toolchain"
+uv run python tools/op-cli/check_toolchain.py --phase 1 >/dev/null 2>&1 \
+  || { uv run python tools/op-cli/check_toolchain.py --phase 1 || true
+       die "install the tools listed above, then re-run ./scripts/setup"; }
+ok "phase 1 tools present"
+
+# ---------------------------------------------------------------------------
+say "2/8  FW_HOST"
+
+# Resolution order, first match wins. Detection is LAST and is only a
+# convenience -- a value you set is never overwritten, which is what makes
+# moving to a VPN hostname a one-line edit rather than a fight with this script.
+FW_HOST_SOURCE=""
+if [[ -n "${FW_HOST:-}" ]]; then
+  FW_HOST_SOURCE="environment"
+elif [[ -f "$ENV_FILE" ]] && grep -qE '^FW_HOST=.+' "$ENV_FILE"; then
+  FW_HOST="$(grep -E '^FW_HOST=' "$ENV_FILE" | head -1 | cut -d= -f2- | tr -d '\r')"
+  FW_HOST_SOURCE=".env (not overwritten)"
+else
+  # Exclude loopback, link-local, and the virtual adapters Windows adds for
+  # WSL and Hyper-V -- on this machine those outnumber the real one 2:1, and
+  # picking one silently would produce a laptop that works and a phone that
+  # does not.
+  if command -v powershell.exe >/dev/null 2>&1; then
+    FW_HOST="$(powershell.exe -NoProfile -Command "
+      (Get-NetIPAddress -AddressFamily IPv4 |
+        Where-Object { \$_.IPAddress -notlike '127.*' -and
+                       \$_.IPAddress -notlike '169.254.*' -and
+                       \$_.InterfaceAlias -notmatch 'WSL|Hyper-V|Loopback|Virtual' } |
+        Select-Object -First 1).IPAddress" 2>/dev/null | tr -d '\r\n ')"
+  else
+    FW_HOST="$(hostname -I 2>/dev/null | awk '{print $1}')"
+  fi
+  FW_HOST_SOURCE="auto-detected"
+fi
+
+# review-agent flagged this on PR #10: settings.py used to default FW_HOST to
+# "localhost", which is right for a laptop and wrong for every other device --
+# and it failed silently. Refusing to continue is louder and cheaper than a
+# phone that mysteriously cannot connect.
+[[ -n "${FW_HOST:-}" ]] || die "could not determine FW_HOST.
+    Set it explicitly and re-run:
+        echo 'FW_HOST=192.168.0.106' >> .env
+    Any host works -- a LAN IP, an mDNS name, or a Tailscale MagicDNS name."
+
+ok "FW_HOST = $FW_HOST   ($FW_HOST_SOURCE)"
+[[ "$FW_HOST_SOURCE" == "auto-detected" ]] && \
+  info "pin it in .env to survive DHCP changes — see .env.example"
+
+# ---------------------------------------------------------------------------
+say "3/8  .env"
+if [[ ! -f "$ENV_FILE" ]]; then
+  SECRET="$(uv run python -c 'import secrets;print(secrets.token_urlsafe(50))')"
+  cat > "$ENV_FILE" <<ENVEOF
+# Written by scripts/setup. Gitignored — never committed.
+# A value you set here is NEVER overwritten. See .env.example.
+FW_HOST=$FW_HOST
+DJANGO_SECRET_KEY=$SECRET
+DJANGO_DEBUG=True
+DATABASE_URL=postgres://funworld:funworld-dev@localhost:5433/funworld
+NEXT_TELEMETRY_DISABLED=1
+ENVEOF
+  ok "created .env with a fresh secret"
+else
+  grep -qE '^FW_HOST=.+' "$ENV_FILE" || printf 'FW_HOST=%s\n' "$FW_HOST" >> "$ENV_FILE"
+  ok ".env already present — left alone"
+fi
+
+# ---------------------------------------------------------------------------
+say "4/8  containers"
+# --wait blocks until healthchecks pass. Without it, migrations race a database
+# that is still starting, which is the flakiest failure this script could have.
+docker compose -f infra/docker-compose.yml up -d --wait >/dev/null 2>&1 \
+  || die "docker compose failed. Is Docker running?"
+ok "postgres :5433, media :8090"
+
+# ---------------------------------------------------------------------------
+say "5/8  python + migrations"
+(cd apps/api && uv sync --quiet) || die "uv sync failed"
+(cd apps/api && uv run python manage.py migrate --no-input >/dev/null) \
+  || die "migrations failed — is postgres healthy?"
+ok "schema up to date"
+
+# ---------------------------------------------------------------------------
+say "6/8  seed"
+if (cd apps/api && uv run python manage.py help seed >/dev/null 2>&1); then
+  (cd apps/api && uv run python manage.py seed >/dev/null) && ok "catalog seeded"
+else
+  info "no seed command yet (T007) — skipping"
+fi
+
+# ---------------------------------------------------------------------------
+say "7/8  javascript"
+if command -v pnpm >/dev/null 2>&1; then
+  pnpm install --silent >/dev/null 2>&1 && ok "workspace installed"
+else
+  info "pnpm not on PATH — skipping"
+fi
+
+# ---------------------------------------------------------------------------
+say "8/8  contracts"
+if [[ -f packages/contracts/package.json ]]; then
+  pnpm --filter @fun-world/contracts generate >/dev/null 2>&1 \
+    && ok "regenerated from openapi.json" \
+    || info "generation failed — is the API running? (T011)"
+else
+  info "packages/contracts not created yet (T011) — skipping"
+fi
+
+# ---------------------------------------------------------------------------
+ELAPSED=$((SECONDS - START))
+cat <<DONE
+
+Fun World is up.
+
+  API      http://${FW_HOST}:8000        (start: cd apps/api && uv run python manage.py runserver 0.0.0.0:8000)
+  Admin    http://${FW_HOST}:8000/admin/
+  Web      http://${FW_HOST}:3000
+  Media    http://${FW_HOST}:8090
+
+  FW_HOST  ${FW_HOST}   <- the address your phone needs, not localhost
+  elapsed  $((ELAPSED / 60))m$((ELAPSED % 60))s
+
+DONE
