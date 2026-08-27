@@ -29,6 +29,12 @@ layers =
 [importlinter:contract:domain-is-pure]
 name = domain/ imports no framework
 type = forbidden
+; NOTE ON `pydantic` BELOW — it is forbidden deliberately, not by oversight.
+; It is the tempting one: it validates nicely and feels harmless in an entity.
+; But it drags a serialisation concern into the one layer that should be plain
+; Python, and once entities carry BaseModel the domain is shaped by what is
+; convenient to serialise. Schemas belong in presentation/.
+; django, ninja, requests and httpx are the obvious ones: framework, HTTP.
 source_modules =
     app.domain
 forbidden_modules =
@@ -37,9 +43,6 @@ forbidden_modules =
     pydantic
     requests
     httpx
-; Pydantic is forbidden here on purpose. It is tempting to reach for it in the
-; domain because it validates nicely, but it drags a serialisation concern into
-; the one layer that should be plain Python. Schemas belong in presentation.
 
 [importlinter:contract:application-is-framework-free]
 name = application/ orchestrates without a framework
