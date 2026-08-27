@@ -47,6 +47,12 @@ def staged_files() -> list[str]:
     return [ln.strip() for ln in out.stdout.splitlines() if ln.strip()]
 
 
+PUSH_HOOK = """#!/bin/sh
+# Fun World pre-push -- generated, do not edit by hand.
+exec uv run --with pyyaml python "$(git rev-parse --show-toplevel)/tools/op-cli/check_push.py"
+"""
+
+
 def install() -> int:
     hooks = Path(
         subprocess.run(["git", "rev-parse", "--git-path", "hooks"],
@@ -55,11 +61,13 @@ def install() -> int:
     if not hooks.is_absolute():
         hooks = ROOT / hooks
     hooks.mkdir(parents=True, exist_ok=True)
-    path = hooks / "pre-commit"
-    path.write_text(HOOK, encoding="utf-8")
-    path.chmod(0o755)
-    print(f"installed {path}")
-    print("agents must commit with FW_AGENT set; human commits are unrestricted")
+    for name, body in (("pre-commit", HOOK), ("pre-push", PUSH_HOOK)):
+        path = hooks / name
+        path.write_text(body, encoding="utf-8")
+        path.chmod(0o755)
+        print(f"installed {path}")
+    print("commit: agents must set FW_AGENT; human commits are unrestricted")
+    print("push:   direct pushes to main are refused -- use a PR")
     return 0
 
 
