@@ -1,0 +1,78 @@
+{
+  "components": {
+    "schemas": {
+      "TitleOut": {
+        "description": "One title, as clients see it.\n\n`created_at` is deliberately absent. It exists on the model for provenance,\nand no client needs it — a field in the contract is\na field two clients can come to depend on, and removing it later is a\nbreaking change made for no reason.",
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "TitleOut",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "description": "Private home streaming. Not reachable from the public internet.",
+    "title": "Fun World",
+    "version": "0.1.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/health": {
+      "get": {
+        "description": "Cheapest possible proof the API is up and reachable.\n\n`scripts/setup` and the clean-runner CI job both poll this, so the scaffold\nis verifiable before any feature endpoint exists. It also gives the phone a\nway to distinguish \"cannot reach the server\" from \"server is up but has no\ntitles\" — the two states FR-008 requires be told apart.",
+        "operationId": "health",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "summary": "Health",
+        "tags": [
+          "meta"
+        ]
+      }
+    },
+    "/api/titles": {
+      "get": {
+        "description": "Every title in the catalog.\n\nNo pagination or filtering — vertical 003 concerns.\n\nRows do arrive ordered, because `core.models.Title.Meta.ordering` is set for\nthe admin's benefit, so the SQL carries `ORDER BY created_at DESC`. The\ncontract still promises nothing about order, and that is deliberate: a\nclient must not come to depend on an ordering that exists as a side effect\nof an admin convenience. T018 tests the contract's silence, not this\ndefault.\n\nAn empty catalog returns `[]` with 200, never 404. That is what makes FR-008\nsatisfiable: \"no titles\" has to be a *success* so a client can distinguish\nit from \"could not reach the server\". A 404 would collapse both into one\nfailure path, and the two need different messages because they need\ndifferent reactions from the person reading them.",
+        "operationId": "listTitles",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TitleOut"
+                  },
+                  "title": "Response",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "summary": "List every title",
+        "tags": [
+          "catalog"
+        ]
+      }
+    }
+  },
+  "servers": []
+}
