@@ -50,6 +50,20 @@ CASES: list[tuple[str, str, str]] = [
      "regenerated whenever ANY package adds a dep — a single owner would block everyone"),
     ("uv.lock", SHARED, "same, for the Python side"),
     ("turbo.json", HUMAN, "build config"),
+
+    # The 8 gaps T001 closed. Each was UNOWNED, which refuses a claim, so
+    # eight tasks in vertical 001 would have deadlocked.
+    ("scripts/setup", HUMAN, "the front door; SC-005a tests it"),
+    ("apps/api/pyproject.toml", HUMAN, "project scaffold"),
+    ("apps/api/manage.py", HUMAN, "project scaffold"),
+    ("apps/api/config/settings.py", HUMAN, "INSTALLED_APPS is structure, not feature work"),
+    ("apps/api/config/urls.py", HUMAN, "project scaffold"),
+    ("apps/api/core/apps.py", "data-agent",
+     "data-agent could not write its own app's AppConfig"),
+    ("apps/api/core/__init__.py", "data-agent", "nor its package marker"),
+    ("apps/api/core/management/commands/seed.py", "data-agent", "nor a seed command"),
+    ("apps/api/core/tests/test_models.py", "qa-agent",
+     "qa precedence still wins inside data-agent's directory"),
 ]
 
 

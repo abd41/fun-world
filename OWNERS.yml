@@ -82,6 +82,18 @@ precedence:
       - pnpm-workspace.yaml   #   version is a project decision, not a task
       - turbo.json
       - .importlinter        # layer contracts are architecture, not a task
+      # Project scaffolding. settings.py holds INSTALLED_APPS, the database
+      # connection and middleware — structure, not feature work. Registering a
+      # Django app happens about once per vertical and is exactly the kind of
+      # change worth a person noticing. Same reasoning as root package.json.
+      - apps/api/pyproject.toml
+      - apps/api/manage.py
+      - apps/api/config/**
+      # The project's front door, and what SC-005a tests. It would otherwise
+      # attract edits from every agent whose layer it touches — the same shape
+      # of problem as pnpm-lock.yaml, but the opposite answer: the lockfile is
+      # regenerated incidentally, this is authored deliberately.
+      - scripts/**
       # NOTE: pnpm-lock.yaml is deliberately NOT here. It is a derived
       # artifact that changes whenever ANY workspace package adds a
       # dependency, so locking it would block every agent that touches
@@ -142,9 +154,18 @@ owners:
 
   data-agent:
     lang: py
+    # Owns the whole `core` Django app, not a list of files inside it.
+    #
+    # This was originally `core/models.py` and `core/admin.py` by name, which
+    # left core/apps.py, core/__init__.py and core/management/commands/ unowned
+    # — data-agent could not write its own app's package marker or a seed
+    # command. Naming files instead of the directory was the modelling error,
+    # and it was invisible until the work was broken into tasks.
+    #
+    # qa-agent's `**/tests/**` precedence rule still wins inside here, so tests
+    # under core/ remain qa-agent's.
     writes:
-      - apps/api/core/models.py
-      - apps/api/core/admin.py
+      - apps/api/core/**
       - apps/api/**/migrations/**
       - apps/api/fixtures/**
     reads:
