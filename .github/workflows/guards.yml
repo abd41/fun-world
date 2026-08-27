@@ -35,13 +35,12 @@ jobs:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
       - name: Dependencies point inward (constitution 32, ADR-0016)
-        # Passes trivially until apps/api exists. The rule is in place BEFORE
-        # the code, because retrofitting layers after views.py imports the ORM
-        # is a rewrite rather than a refactor.
-        run: |
-          if [ -d apps/api/app ]; then
-            uv run --with import-linter lint-imports --config .importlinter
-          else
-            echo "apps/api/app does not exist yet — contract is staged and will"
-            echo "start enforcing the moment vertical 001 creates it."
-          fi
+        # No conditional guard here, deliberately. This job used to skip when
+        # `apps/api/app` was absent -- a directory that never existed, because
+        # the package was guessed before any code did. It reported success for
+        # its entire life while enforcing nothing.
+        #
+        # If the config is wrong, this must fail loudly rather than skip
+        # quietly. A guard that cannot fail is not a guard.
+        working-directory: apps/api
+        run: uv run --with import-linter lint-imports --config ../../.importlinter
