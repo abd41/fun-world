@@ -41,7 +41,7 @@ api = NinjaAPI(
 api.add_router("/titles", catalog_router)
 
 
-@api.get("/health", tags=["meta"])
+@api.get("/health", tags=["meta"], operation_id="health")
 def health(request) -> dict:
     """Cheapest possible proof the API is up and reachable.
 
