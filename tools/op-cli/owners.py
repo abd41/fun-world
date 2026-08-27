@@ -22,6 +22,8 @@ OWNERS_FILE = ROOT / "OWNERS.yml"
 
 HUMAN = "HUMAN"
 UNOWNED = "UNOWNED"
+# Any agent may write these — see `shared_generated` in OWNERS.yml.
+SHARED = "SHARED"
 
 
 @dataclass(frozen=True)
@@ -31,6 +33,8 @@ class Resolution:
 
     @property
     def writable_by_agent(self) -> bool:
+        if self.owner == SHARED:
+            return True
         return self.owner not in (HUMAN, UNOWNED) and not self.owner.startswith("AMBIGUOUS")
 
 
@@ -74,6 +78,12 @@ def resolve(path: str, cfg: dict | None = None) -> Resolution:
     claimed. Silence is never authorisation.
     """
     cfg = cfg or load()
+
+    # Shared generated artifacts are checked before anything else: they are
+    # outputs, so ownership does not apply to them at all.
+    for pattern in cfg.get("shared_generated", []) or []:
+        if _match(path, pattern):
+            return Resolution(SHARED, f"shared_generated[{pattern}]")
 
     for rule in cfg.get("precedence", []):
         for pattern in rule["paths"]:

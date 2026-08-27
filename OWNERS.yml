@@ -38,6 +38,25 @@ limits:
 # is unowned and op-cli refuses the claim — silence is never permission.
 resolution: first-match
 
+# Files that ANY agent may write, because they are regenerated as a side
+# effect of legitimate work rather than authored.
+#
+# This is a third category, and it exists because the first two do not fit.
+# `pnpm-lock.yaml` changes whenever any workspace package adds a dependency,
+# so a single owner would block almost every agent almost every time; and
+# leaving it UNOWNED refuses the claim, which is the same block with a worse
+# error message.
+#
+# Note the contrast with `packages/contracts`, which is ALSO generated but IS
+# owned: it has one deliberate regenerator (contract-keeper) and a CI gate.
+# The distinction is who regenerates it -- one agent on purpose, or any agent
+# incidentally. Only the latter belongs here.
+#
+# The protection for these is regenerate-never-hand-edit, checked in CI.
+shared_generated:
+  - pnpm-lock.yaml
+  - uv.lock
+
 precedence:
 
   # 1. Human-only. Nothing below can override these.
@@ -59,10 +78,16 @@ precedence:
       - .env
       - .env.*
       - .gitignore
-      - package.json
-      - pnpm-workspace.yaml
-      - pnpm-lock.yaml
+      - package.json          # ROOT only — a root dep or the package manager
+      - pnpm-workspace.yaml   #   version is a project decision, not a task
       - turbo.json
+      # NOTE: pnpm-lock.yaml is deliberately NOT here. It is a derived
+      # artifact that changes whenever ANY workspace package adds a
+      # dependency, so locking it would block every agent that touches
+      # apps/web/package.json or apps/mobile/package.json -- which is most
+      # of them, most of the time. Like packages/contracts, the protection
+      # is "regenerate it, never hand-edit it", enforced by CI rather than
+      # by ownership.
 
   # 2. The one carve-out inside infra/ — realm export is auth-agent's output.
   #    Must precede the infra/** lock below.
