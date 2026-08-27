@@ -144,10 +144,15 @@ say "8/8  contracts"
 if [[ ! -f packages/contracts/package.json ]]; then
   die "packages/contracts is missing. The clients have nothing to compile against."
 fi
-if ! pnpm --filter @fun-world/contracts generate >/dev/null 2>&1; then
+# --dir, not --filter. `pnpm --filter <name>` exits 0 when the filter matches
+# no project at all, so a drifted package name would have printed "ok" here
+# having generated nothing -- a silent skip inside the step whose whole purpose
+# was removing silent skips. Found by review.
+if ! pnpm --dir packages/contracts run generate >/dev/null 2>&1; then
   die "contract generation failed. Run it directly to see why:
-        pnpm --filter @fun-world/contracts generate"
+        pnpm --dir packages/contracts run generate"
 fi
+[[ -s packages/contracts/src/index.ts ]]   || die "generation reported success but produced no client. This should be impossible; please report it."
 ok "regenerated from openapi.json"
 
 # ---------------------------------------------------------------------------
