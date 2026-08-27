@@ -59,3 +59,47 @@ jobs:
         #
         # Judgement calls are deliberately NOT here. They need a reader.
         run: uv run python tools/op-cli/check_constitution.py
+
+  contracts:
+    name: Contracts match the API
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Regenerate and diff (constitution 13)
+        # No `if:` guard on the package existing. That conditional is how the
+        # layering job spent its entire life reporting success while checking
+        # nothing, and how check_drift printed "consistent across every
+        # surface" having never looked at one of them. If the package is
+        # missing, this job must go red.
+        #
+        # The env below is what Django needs to *load settings*, not to reach
+        # a database. export_openapi_schema reads the routers through the app
+        # registry and opens no socket, which is the whole reason the schema
+        # comes from a file instead of a running server -- so no Postgres
+        # service is needed here, and the DATABASE_URL is never connected to.
+        env:
+          DJANGO_SECRET_KEY: ci-only-never-used-to-sign-anything
+          DATABASE_URL: postgres://unused:unused@127.0.0.1:1/unused
+        run: |
+          pnpm --filter @fun-world/contracts generate
+
+          # `git diff --exit-code` alone is not enough: it compares tracked
+          # files and says nothing about a *new* file the generator emitted.
+          # Staging first makes additions and deletions visible too, so a new
+          # endpoint that nobody regenerated fails here rather than arriving
+          # as a 404 on a television.
+          git add --all -- packages/contracts
+          if ! git diff --cached --quiet -- packages/contracts; then
+            echo "::error::packages/contracts is out of date. Run: pnpm --filter @fun-world/contracts generate"
+            git diff --cached --stat -- packages/contracts
+            git diff --cached -- packages/contracts | head -200
+            exit 1
+          fi
+          echo "Contracts match the API."
