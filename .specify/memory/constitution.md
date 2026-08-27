@@ -150,3 +150,40 @@ deliberate act by a person, and amendments are dated below.
 ---
 
 *Ratified 2026-08-27. Amendments are appended below with a date and a reason.*
+
+---
+
+## Amendments
+
+### 2026-08-27 — assets and motion
+
+Prompted by considering Lottie animations for error and loading states. The
+discussion exposed three gaps that have nothing to do with Lottie specifically
+and apply equally to fonts, icon sets and imagery.
+
+**29. Third-party assets are vendored, never fetched at runtime.**
+Fonts, icons, animations and imagery are committed to the repository and served
+from this machine. No CDN, no asset host, no exception.
+
+*Why this was missing:* §6 forbids third-party **telemetry** — data about us
+going out. §4 forbids **scraping** metadata. A request *for content* from an
+asset CDN is neither, so a component pulling a Lottie file from a third-party
+host would have violated nothing. It does now.
+
+**30. Third-party assets carry their licence and attribution.**
+Every vendored asset records its licence and, where required, is credited in
+the UI. The same discipline §3 applies to the catalog, applied to the assets
+around it.
+
+*Why this was missing:* §3 governs **content** — the films. A CC-BY animation
+or an icon set is not content, and fell outside it.
+
+**31. Motion respects `prefers-reduced-motion`.**
+Every animated component has a still fallback and honours the user's setting.
+The reduced-motion state is part of its `ui-spec` entry, so §15's parity gate
+covers it on both platforms. Animation that cannot be stopped does not ship.
+
+*Why this was missing:* the constitution said nothing about motion or
+accessibility at all. This is the first of what will probably become a fuller
+accessibility section — the TV work in particular will need focus-visibility
+rules that do not exist yet.

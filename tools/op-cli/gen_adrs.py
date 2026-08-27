@@ -432,6 +432,16 @@ def slug(title: str) -> str:
 
 def main() -> int:
     ADR.mkdir(parents=True, exist_ok=True)
+    # Seeded records only. Anything written by hand since (0015 onward) must
+    # survive a re-run -- a generator that eats hand-written decisions is worse
+    # than no generator.
+    seeded = {r["num"] for r in RECORDS}
+    extra = sorted(
+        p.name for p in ADR.glob("[0-9][0-9][0-9][0-9]-*.md")
+        if p.name[:4] not in seeded
+    )
+    if extra:
+        print(f"  preserving {len(extra)} hand-written ADR(s): {', '.join(extra)}")
     written = []
     for r in RECORDS:
         path = ADR / f"{r['num']}-{slug(r['title'])}.md"
@@ -447,13 +457,20 @@ def main() -> int:
         )
         written.append((r["num"], r["title"], r["status"]))
 
+    for name in extra:
+        num = name[:4]
+        title = name[5:-3].replace("-", " ")
+        written.append((num, title, "Accepted"))
+    written.sort(key=lambda t: t[0])
+
     index = ["# Architecture Decision Records", "",
              "Why the system is the way it is. Numbered, immutable once accepted;",
              "a reversal adds a new record and marks the old one **Superseded**.", "",
              "New decisions use [`template.md`](template.md).", "",
              "| # | Decision | Status |", "|---|---|---|"]
+    by_file = {p.name[:4]: p.name for p in ADR.glob("[0-9][0-9][0-9][0-9]-*.md")}
     for num, title, status in written:
-        index.append(f"| [{num}]({num}-{slug(title)}.md) | {title} | {status} |")
+        index.append(f"| [{num}]({by_file[num]}) | {title} | {status} |")
     index += ["", "## When to write one", "",
               "Write an ADR when a choice is **hard to reverse**, **surprising**, or",
               "**was reversed** -- not for routine implementation detail. The test:",

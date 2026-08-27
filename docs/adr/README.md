@@ -21,6 +21,7 @@ New decisions use [`template.md`](template.md).
 | [0012](0012-self-host-hls-instead-of-a-managed-video-api.md) | Self-host HLS instead of a managed video API | Accepted |
 | [0013](0013-tailscale-for-remote-access-not-a-public-tunnel.md) | Tailscale for remote access, not a public tunnel | Accepted |
 | [0014](0014-bound-concurrency-by-review-capacity.md) | Bound concurrency by review capacity | Accepted |
+| [0015](0015-skeletons-for-loading-lottie-for-error-and-empty-states.md) | skeletons for loading lottie for error and empty states | Accepted |
 
 ## When to write one
 
