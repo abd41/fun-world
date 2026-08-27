@@ -188,6 +188,18 @@ touches human-owned paths by design (constitution §8, ADR-0007).
   - Every SC in order, including `down -v` then `setup` as the closest local approximation of a clean run
   - **SC-005b is a judgement call and stays one** — do not tick it because T008 is green
 
+- [ ] T022 Enforcement layer 3: CODEOWNERS — owner: **op-agent** — paths: `.github/CODEOWNERS`
+  - ADR-0007 records ownership as "enforced in three layers: agent definition, pre-commit guard, CODEOWNERS", and `check_boundaries.py:7` names layer 3 as "CODEOWNERS + a required check on the PR — catches layer 2 bypass". **There is no CODEOWNERS file in this repository.** Layers 1 and 2 are both local and both skippable with `--no-verify`; layer 3 is the only one that survives a bypass, and it has never existed
+  - Generate it from `OWNERS.yml` rather than hand-writing it — a second hand-maintained ownership table drifts from the first, which is the failure `check_drift.py` already exists to catch. Extend that check to cover the generated file
+  - PR #13 was the first PR to touch a HUMAN-owned path (`.importlinter`) and nothing flagged it. That is the case this task is for
+  - Same failure shape as the layering guard: an accepted decision, documented and believed in, enforcing nothing (§26)
+
+- [ ] T023 Record `FW_AGENT` as a commit trailer — owner: **op-agent** — paths: `tools/op-cli/check_boundaries.py`
+  - `FW_AGENT` is the identity `check_boundaries.py` validates against `OWNERS.yml`, and it exists only as an environment variable at commit time. Nothing durable records which agent acted: every commit on `main` has an empty `%(trailers)`
+  - Consequence, observed on PR #15: review-agent alleged a §8 violation from git authorship, the author rebutted that the hook had passed under the owning agent, and **neither claim is checkable**. All agents share the one `abdulRaw <…+bot@gmail.com>` account, so authorship separates agent from human and nothing finer — `check_boundaries.py:127-131` says exactly that
+  - Write `FW-Agent: <name>` from the hook (`prepare-commit-msg`; a pre-commit hook cannot amend the message). Then a boundary question is one `git log` query instead of an argument
+  - A gate whose verdict leaves no evidence cannot be audited after the fact
+
 ---
 
 ## Dependencies & Execution Order
