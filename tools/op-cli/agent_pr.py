@@ -93,15 +93,24 @@ def main() -> int:
     print(f"  pushed {branch}")
 
     title = args.title or run(["git", "log", "-1", "--pretty=%s"]).stdout.strip()
+    # Derive the description from the commits on this branch rather than asking
+    # for it separately. Written twice, the two versions disagree within a week
+    # -- and the commit messages are the ones that survive in history, so they
+    # are the source. This also matches the repo's squash settings, where the
+    # commit messages become the merged commit's body.
+    log = run(
+        ["git", "log", "--reverse", "--pretty=format:%s%n%n%b", "origin/main..HEAD"]
+    ).stdout.strip()
+
     body = (
-        f"{args.body}\n\n" if args.body else ""
-    ) + (
-        f"Work package **OP#{args.wp}** — http://localhost:8080/work_packages/{args.wp}\n\n"
-        f"Opened by `{agent}`, working inside its `OWNERS.yml` boundary.\n\n"
-        "---\n"
-        "- [ ] `review-agent` has commented\n"
-        "- [ ] mechanical findings addressed or answered\n"
-        "- [ ] a human approved\n"
+        (f"{log}\n\n" if log else "")
+        + (f"{args.body}\n\n" if args.body else "")
+        + f"Work package **OP#{args.wp}** — http://localhost:8080/work_packages/{args.wp}\n\n"
+        + f"Opened by `{agent}`, working inside its `OWNERS.yml` boundary.\n\n"
+        + "---\n"
+        + "- [ ] `review-agent` has commented\n"
+        + "- [ ] inline findings resolved or answered\n"
+        + "- [ ] a human approved\n"
     )
 
     # gh honours GH_TOKEN, so the PR is authored by the agent account. This is
