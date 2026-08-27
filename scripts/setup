@@ -110,29 +110,45 @@ ok "schema up to date"
 
 # ---------------------------------------------------------------------------
 say "6/8  seed"
-if (cd apps/api && uv run python manage.py help seed >/dev/null 2>&1); then
-  (cd apps/api && uv run python manage.py seed >/dev/null) && ok "catalog seeded"
-else
-  info "no seed command yet (T007) — skipping"
+# T007 landed, so a missing seed command is a broken checkout, not an unbuilt
+# feature. The skip branch that used to be here was right while the command did
+# not exist, and became a lie the moment it did: it would report a clean setup
+# on a tree where core/management had gone missing.
+if ! (cd apps/api && uv run python manage.py help seed >/dev/null 2>&1); then
+  die "no seed command. apps/api/core/management is missing or broken."
 fi
+if ! (cd apps/api && uv run python manage.py seed >/dev/null); then
+  die "seeding failed. Is postgres healthy?"
+fi
+ok "catalog seeded"
 
 # ---------------------------------------------------------------------------
 say "7/8  javascript"
-if command -v pnpm >/dev/null 2>&1; then
-  pnpm install --silent >/dev/null 2>&1 && ok "workspace installed"
-else
-  info "pnpm not on PATH — skipping"
+# check_toolchain already refuses to continue without pnpm, so the skip branch
+# was unreachable. Worse, `pnpm install && ok` swallowed a FAILED install in
+# silence: it printed nothing, then went on to generate contracts against
+# packages that were never installed.
+if ! pnpm install --silent >/dev/null 2>&1; then
+  die "pnpm install failed. Run it directly to see why:
+        pnpm install"
 fi
+ok "workspace installed"
 
 # ---------------------------------------------------------------------------
 say "8/8  contracts"
-if [[ -f packages/contracts/package.json ]]; then
-  pnpm --filter @fun-world/contracts generate >/dev/null 2>&1 \
-    && ok "regenerated from openapi.json" \
-    || info "generation failed — is the API running? (T011)"
-else
-  info "packages/contracts not created yet (T011) — skipping"
+# T011 landed, so both branches here were wrong and are replaced rather than
+# left. The else branch is dead, and "is the API running?" was never the cause:
+# generation reads the routers through Django app registry and needs no server
+# at all. A stale diagnosis sends the next person to check the wrong thing for
+# twenty minutes.
+if [[ ! -f packages/contracts/package.json ]]; then
+  die "packages/contracts is missing. The clients have nothing to compile against."
 fi
+if ! pnpm --filter @fun-world/contracts generate >/dev/null 2>&1; then
+  die "contract generation failed. Run it directly to see why:
+        pnpm --filter @fun-world/contracts generate"
+fi
+ok "regenerated from openapi.json"
 
 # ---------------------------------------------------------------------------
 ELAPSED=$((SECONDS - START))
