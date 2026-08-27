@@ -24,7 +24,9 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import json
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -69,6 +71,41 @@ def fmt(wp: dict) -> str:
 
 
 # --------------------------------------------------------------------------
+def blockers(c: Client, wp_id: int) -> list[dict]:
+    """Open work packages this one `follows` -- i.e. its prerequisites.
+
+    A ticket whose prerequisite is not merged yet is not ready, and letting an
+    agent claim it produces work against an interface that does not exist.
+    """
+    rels = c.call("GET", f"/api/v3/work_packages/{wp_id}/relations")
+    out = []
+    for r in rels.get("_embedded", {}).get("elements", []):
+        if r.get("type") != "follows":
+            continue
+        href = (r.get("_links", {}).get("to") or {}).get("href", "")
+        if not href:
+            continue
+        dep = c.get_wp(int(href.rsplit("/", 1)[-1]))
+        if not (dep.get("_links", {}).get("status") or {}).get("href", "").endswith(
+            f"/{STATUS['done']}"
+        ):
+            out.append(dep)
+    return out
+
+
+def pr_state(number: int) -> dict:
+    """Ask GitHub, not OpenProject. The github_pull_requests endpoint needs the
+    GitHub integration wired up, which this instance does not have."""
+    r = subprocess.run(
+        ["gh", "pr", "view", str(number), "--json",
+         "state,mergedAt,reviewDecision,author,url"],
+        capture_output=True, text=True,
+    )
+    if r.returncode != 0:
+        return {"error": (r.stderr or r.stdout).strip().splitlines()[0] if (r.stderr or r.stdout) else "gh failed"}
+    return json.loads(r.stdout)
+
+
 def cmd_show(c: Client, a) -> int:
     wp = c.get_wp(a.wp)
     L = wp.get("_links", {})
@@ -124,6 +161,18 @@ def cmd_claim(c: Client, a) -> int:
         if len(grouped) > 1:
             lines.append(f"\n  It spans {len(grouped)} owners. Split it instead:\n"
                          f"    op-cli split --wp {a.wp}")
+        die("\n".join(lines))
+
+    if blocked := blockers(c, a.wp):
+        lines = [f"#{a.wp} is blocked by {len(blocked)} unfinished prerequisite(s):", ""]
+        for b in blocked:
+            st = (b.get("_links", {}).get("status") or {}).get("title", "?")
+            lines.append(f"    #{b['id']}  [{st}]  {b['subject']}")
+        lines += [
+            "",
+            "  Work against an interface that does not exist yet gets rebuilt.",
+            f"  op-cli next --agent {a.agent}   # something that IS ready",
+        ]
         die("\n".join(lines))
 
     href = c.option_href(AGENT, a.agent, TYPE["task"])
@@ -192,6 +241,82 @@ def cmd_split(c: Client, a) -> int:
               + "\n".join(f"- #{i} → `{o}`" for i, o in made))
     print(f"\nsplit #{a.wp} into {len(made)} child work package(s)")
     print("Routing was derived from OWNERS.yml — no agent chose a recipient.")
+    return 0
+
+
+def cmd_blockon(c: Client, a) -> int:
+    c.call("POST", f"/api/v3/work_packages/{a.wp}/relations",
+           {"_links": {"to": {"href": f"/api/v3/work_packages/{a.needs}"}}, "type": "follows"})
+    print(f"#{a.wp} now follows #{a.needs} — it cannot be claimed until that closes")
+    return 0
+
+
+def cmd_next(c: Client, a) -> int:
+    """What this agent could actually start right now."""
+    cfg = load()
+    if a.agent not in cfg["owners"]:
+        die(f"'{a.agent}' is not an agent in OWNERS.yml")
+
+    rows = c.query([{"status": {"operator": "o", "values": []}}])  # open only
+    ready, blocked_n, unowned_n = [], 0, 0
+    for w in rows:
+        paths = wp_paths(w)
+        if not paths:
+            unowned_n += 1
+            continue
+        grouped = route(paths, cfg)
+        if list(grouped) != [a.agent]:
+            continue
+        if (w.get("_links", {}).get(AGENT) or {}).get("title") not in (None, a.agent):
+            continue
+        if blockers(c, w["id"]):
+            blocked_n += 1
+            continue
+        ready.append(w)
+
+    for w in sorted(ready, key=lambda w: w["id"]):
+        print(fmt(w))
+    summary = f"\n{len(ready)} ready for {a.agent}"
+    if blocked_n:
+        summary += f", {blocked_n} blocked by prerequisites"
+    if unowned_n:
+        summary += f", {unowned_n} unclaimable (no Paths set)"
+    print(summary)
+    if not ready:
+        print("Nothing to start. That is a real answer — do not invent work.")
+    return 0
+
+
+def cmd_close(c: Client, a) -> int:
+    """Close a ticket only if its pull request actually merged AND was approved.
+
+    Without this, an agent can mark work done that nobody reviewed, which
+    quietly defeats the gate the whole review setup exists to provide.
+    """
+    pr = pr_state(a.pr)
+    if "error" in pr:
+        die(f"could not read PR #{a.pr}: {pr['error']}")
+
+    problems = []
+    if pr.get("state") != "MERGED" or not pr.get("mergedAt"):
+        problems.append(f"PR #{a.pr} is {pr.get('state','?').lower()}, not merged")
+    if pr.get("reviewDecision") != "APPROVED":
+        problems.append(f"PR #{a.pr} review is {pr.get('reviewDecision') or 'not approved'}")
+    if problems:
+        lines = [f"Refusing to close #{a.wp}:", ""]
+        lines += [f"  {p}" for p in problems]
+        lines += [
+            "",
+            f"  {pr.get('url', '')}",
+            "",
+            "  A human approves and merges. Closing without that is the one",
+            "  shortcut that makes the whole review gate decorative.",
+        ]
+        die("\n".join(lines))
+
+    c.set_status(a.wp, "done")
+    c.comment(a.wp, f"Closed: PR #{a.pr} merged and approved.\n\n{pr.get('url', '')}")
+    print(f"#{a.wp} -> Closed (PR #{a.pr} merged, approved)")
     return 0
 
 
@@ -322,6 +447,11 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--criterion", required=True); s.add_argument("--title", required=True)
     s.add_argument("--detail"); s.add_argument("--reproduced", type=int, default=1)
     s.set_defaults(fn=cmd_bug)
+    s = sub.add_parser("blockon"); s.add_argument("--wp", type=int, required=True)
+    s.add_argument("--needs", type=int, required=True); s.set_defaults(fn=cmd_blockon)
+    s = sub.add_parser("next"); s.add_argument("--agent", required=True); s.set_defaults(fn=cmd_next)
+    s = sub.add_parser("close"); s.add_argument("--wp", type=int, required=True)
+    s.add_argument("--pr", type=int, required=True); s.set_defaults(fn=cmd_close)
     s = sub.add_parser("sync"); s.add_argument("tasks"); s.set_defaults(fn=cmd_sync)
     return p
 

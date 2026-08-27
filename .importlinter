@@ -1,0 +1,58 @@
+; Layer contracts for apps/api — constitution §32, ADR-0016.
+;
+; Dependencies point INWARD. domain depends on nothing.
+;
+; Run:  uv run --with import-linter lint-imports
+; CI runs this on every pull request, so the rule is enforced rather than
+; merely documented. A layering rule that is only written down erodes.
+;
+; These contracts pass trivially until apps/api exists. That is deliberate:
+; the rule is in place BEFORE the code, because retrofitting layers after
+; views.py already imports the ORM is a rewrite, not a refactor.
+
+[importlinter]
+root_packages =
+    app
+include_external_packages = True
+
+[importlinter:contract:onion]
+name = Onion layers: dependencies point inward
+type = layers
+layers =
+    app.presentation
+    app.infrastructure
+    app.application
+    app.domain
+; Read top-to-bottom as outermost-to-innermost. import-linter forbids a lower
+; layer importing a higher one, which is exactly the inward-only rule.
+
+[importlinter:contract:domain-is-pure]
+name = domain/ imports no framework
+type = forbidden
+; NOTE ON `pydantic` BELOW — it is forbidden deliberately, not by oversight.
+; It is the tempting one: it validates nicely and feels harmless in an entity.
+; But it drags a serialisation concern into the one layer that should be plain
+; Python, and once entities carry BaseModel the domain is shaped by what is
+; convenient to serialise. Schemas belong in presentation/.
+; django, ninja, requests and httpx are the obvious ones: framework, HTTP.
+source_modules =
+    app.domain
+forbidden_modules =
+    django
+    ninja
+    pydantic
+    requests
+    httpx
+
+[importlinter:contract:application-is-framework-free]
+name = application/ orchestrates without a framework
+type = forbidden
+source_modules =
+    app.application
+forbidden_modules =
+    django.http
+    django.shortcuts
+    ninja
+; The ORM is not forbidden outright here: Django models leak through
+; repository return types in practice, and pretending otherwise produces
+; mapping code nobody maintains. HTTP, however, has no business this far in.
