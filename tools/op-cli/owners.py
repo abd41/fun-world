@@ -96,13 +96,23 @@ def resolve(path: str, cfg: dict | None = None) -> Resolution:
         for pattern in (spec.get("writes") or [])
         if _match(path, pattern)
     ]
-    if len(hits) == 1:
-        return Resolution(hits[0][0], f"owners[{hits[0][1]}]")
-    if len(hits) > 1:
-        agents = ",".join(sorted({h[0] for h in hits}))
-        # Two owners for one path means OWNERS.yml needs a precedence rule.
-        return Resolution(f"AMBIGUOUS:{agents}", "CONFLICT — add a precedence rule")
-    return Resolution(UNOWNED, "no rule")
+    if not hits:
+        return Resolution(UNOWNED, "no rule")
+
+    # Several patterns matching is fine as long as they agree. An agent may
+    # legitimately own a directory AND a cross-cutting pattern inside it --
+    # data-agent owns `apps/api/core/**` and also `apps/api/**/migrations/**`,
+    # so `core/migrations/0001.py` matches twice and is not ambiguous.
+    # Ambiguity is about *disagreement*, not about the number of matches.
+    agents = {h[0] for h in hits}
+    if len(agents) == 1:
+        matched = hits[0][1] if len(hits) == 1 else f"{len(hits)} patterns, all {hits[0][0]}"
+        return Resolution(hits[0][0], f"owners[{matched}]")
+
+    return Resolution(
+        "AMBIGUOUS:" + ",".join(sorted(agents)),
+        "CONFLICT — two agents claim this; add a precedence rule",
+    )
 
 
 def route(paths: list[str], cfg: dict | None = None) -> dict[str, list[str]]:

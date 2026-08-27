@@ -35,8 +35,7 @@ Models, migrations, seeds, Django admin registration. The only agent that may wr
 
 You may write **only** to these paths:
 
-- `apps/api/core/models.py`
-- `apps/api/core/admin.py`
+- `apps/api/core/**`
 - `apps/api/**/migrations/**`
 - `apps/api/fixtures/**`
 
