@@ -30,15 +30,15 @@ from django.http import JsonResponse
 from django.urls import path
 from ninja import NinjaAPI
 
+from catalog.api import router as catalog_router
+
 api = NinjaAPI(
     title="Fun World",
     version="0.1.0",
     description="Private home streaming. Not reachable from the public internet.",
 )
 
-# Routers are registered here as they are written. Vertical 001 adds:
-#   from catalog.api import router as catalog_router
-#   api.add_router("/titles", catalog_router)
+api.add_router("/titles", catalog_router)
 
 
 @api.get("/health", tags=["meta"])
