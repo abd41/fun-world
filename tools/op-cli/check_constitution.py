@@ -17,6 +17,7 @@ does this abstraction earn its keep -- are NOT here. They need a reader.
 from __future__ import annotations
 
 import argparse
+import ast
 import re
 import subprocess
 import sys
@@ -125,6 +126,51 @@ def check_assets(path: Path, lines: list[str]) -> list[Finding]:
     return out
 
 
+def check_operation_ids(path: Path, lines: list[str]) -> list[Finding]:
+    """Every django-ninja route pins an explicit operation_id.
+
+    Not a constitution clause; an invariant T011 established and could only
+    state in prose. django-ninja defaults operation_id to the Python module
+    path, and hey-api turns that into the client function name -- so
+    `catalog/api.py::list_all` published a function called `catalogApiListAll`.
+    That puts the server's file layout in the contract: moving a function
+    renames what both clients call, making a pure refactor a breaking change.
+
+    A README sentence saying "new routes must set operation_id" is exactly the
+    kind of rule that holds until the first person who has not read it. Parsed
+    with ast rather than regex because these decorators wrap across lines.
+    """
+    rel = path.relative_to(ROOT).as_posix()
+    if path.suffix != ".py" or not rel.startswith("apps/api/"):
+        return []
+    try:
+        tree = ast.parse(chr(10).join(lines))
+    except SyntaxError:
+        return []       # not ours to report; the test suite will say so
+
+    verbs = {"get", "post", "put", "patch", "delete", "api_operation"}
+    out = []
+    for node in ast.walk(tree):
+        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        for dec in node.decorator_list:
+            if not isinstance(dec, ast.Call) or not isinstance(dec.func, ast.Attribute):
+                continue
+            if dec.func.attr not in verbs:
+                continue
+            # Only ninja routers/APIs -- `router.get(...)`, `api.get(...)`.
+            base = dec.func.value
+            if not isinstance(base, ast.Name) or base.id not in {"router", "api"}:
+                continue
+            if not any(kw.arg == "operation_id" for kw in dec.keywords):
+                out.append(Finding(
+                    "T011", path, dec.lineno, lines[dec.lineno - 1],
+                    f"route '{node.name}' has no operation_id, so the client "
+                    "function name would be derived from this file's path",
+                ))
+    return out
+
+
 # §12 (packages/contracts is generated, never authored) is deliberately NOT
 # checked here.
 #
@@ -142,6 +188,7 @@ CHECKS = [
     ("§14 colour only from tokens", check_colour),
     ("§7  no hardcoded hosts", check_hosts),
     ("§29 assets vendored", check_assets),
+    ("T011 routes pin operation_id", check_operation_ids),
 ]
 
 
