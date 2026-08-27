@@ -81,6 +81,7 @@ precedence:
       - package.json          # ROOT only — a root dep or the package manager
       - pnpm-workspace.yaml   #   version is a project decision, not a task
       - turbo.json
+      - .importlinter        # layer contracts are architecture, not a task
       # NOTE: pnpm-lock.yaml is deliberately NOT here. It is a derived
       # artifact that changes whenever ANY workspace package adds a
       # dependency, so locking it would block every agent that touches

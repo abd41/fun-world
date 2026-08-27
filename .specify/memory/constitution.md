@@ -187,3 +187,18 @@ covers it on both platforms. Animation that cannot be stopped does not ship.
 accessibility at all. This is the first of what will probably become a fuller
 accessibility section — the TV work in particular will need focus-visibility
 rules that do not exist yet.
+
+### 2026-08-27 — layering
+
+**32. Dependencies point inward.**
+`domain/` depends on nothing — no Django, no ORM, no HTTP. `application/`
+depends only on `domain/` and the interfaces it declares itself.
+`infrastructure/` and `presentation/` depend inward, never the reverse.
+Enforced by `import-linter` in CI, because a layering rule that lives only in
+a document erodes in about three weeks (§26).
+
+Applied where business rules are non-trivial, **not uniformly**. The test is:
+*is there a rule here that would survive changing the database?* If not, a
+plain Django view is the honest answer and four layers is theatre. See
+ADR-0016, which also records that the article proposing this had the
+dependency direction backwards.

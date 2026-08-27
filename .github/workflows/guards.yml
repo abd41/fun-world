@@ -27,3 +27,21 @@ jobs:
       - uses: astral-sh/setup-uv@v5
       - run: uv run --with pyyaml python test_resolve.py
         working-directory: tools/op-cli
+
+  layering:
+    name: Onion layers
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - name: Dependencies point inward (constitution 32, ADR-0016)
+        # Passes trivially until apps/api exists. The rule is in place BEFORE
+        # the code, because retrofitting layers after views.py imports the ORM
+        # is a rewrite rather than a refactor.
+        run: |
+          if [ -d apps/api/app ]; then
+            uv run --with import-linter lint-imports --config .importlinter
+          else
+            echo "apps/api/app does not exist yet — contract is staged and will"
+            echo "start enforcing the moment vertical 001 creates it."
+          fi
