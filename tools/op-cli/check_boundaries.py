@@ -28,8 +28,14 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from owners import HUMAN, ROOT, UNOWNED, load, resolve  # noqa: E402
 
 HOOK = """#!/bin/sh
-# Fun World boundary guard -- generated, do not edit by hand.
-exec uv run --with pyyaml python "$(git rev-parse --show-toplevel)/tools/op-cli/check_boundaries.py"
+# Fun World pre-commit -- generated, do not edit by hand.
+# Two guards, both cheap, each catching a class of silent failure:
+#   1. drift  -- OWNERS.yml vs what agents believe and what routing enforces
+#   2. bounds -- did the acting agent write outside its allowlist
+set -e
+ROOT="$(git rev-parse --show-toplevel)"
+uv run --with pyyaml python "$ROOT/tools/op-cli/check_drift.py" --offline
+uv run --with pyyaml python "$ROOT/tools/op-cli/check_boundaries.py"
 """
 
 

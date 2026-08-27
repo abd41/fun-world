@@ -1,0 +1,29 @@
+name: guards
+
+# The same checks the pre-commit hook runs, re-run where they cannot be
+# skipped with --no-verify. The local hook is a convenience; this is the gate.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  drift:
+    name: OWNERS.yml drift
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - name: No drift between OWNERS.yml, agent definitions and routing
+        # --offline: OpenProject runs on the developer's laptop and is not
+        # reachable from CI. The board check runs pre-commit instead.
+        run: uv run --with pyyaml python tools/op-cli/check_drift.py --offline
+
+  routing:
+    name: Path routing
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv run --with pyyaml python test_resolve.py
+        working-directory: tools/op-cli
