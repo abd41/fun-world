@@ -1,0 +1,13 @@
+# Generated files are LF, on every platform.
+#
+# Without this, core.autocrlf=true gives a Windows checkout CRLF in the working
+# tree while the generator writes LF. `git add` normalises both to LF, so the
+# CI gate is correct either way -- but `git status` reports all 17 generated
+# files as modified immediately after a fresh checkout and a regeneration that
+# changed nothing.
+#
+# SC-005 is "contracts regenerate with an empty git diff", and a developer
+# checking that by eye would see 17 modified files and conclude the contract
+# had drifted. A gate that cries wolf is a gate people learn to skip, so the
+# line endings are pinned rather than left to each machine's git config.
+* text eol=lf
