@@ -1,0 +1,48 @@
+name: setup
+
+# SC-005a ONLY: proves `./scripts/setup` works on a machine that has nothing
+# installed. This laptop can never answer that question — it already has
+# everything — so the check has to run somewhere genuinely clean.
+#
+# It does NOT prove SC-005b (a person can bring it up unaided), and must not
+# be treated as evidence for it. This runner cannot cover Docker Desktop, LAN
+# detection against WSL/Hyper-V adapters, or the Windows firewall rule — the
+# three things most likely to defeat a real newcomer. That gap is exactly why
+# the spec split SC-005 in two.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  clean-runner:
+    name: setup on a clean runner
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: corepack enable
+
+      - name: ./scripts/setup
+        # FW_HOST is set explicitly: a CI runner has no meaningful LAN address,
+        # and auto-detection there would test a code path no human ever hits.
+        env:
+          FW_HOST: 127.0.0.1
+        run: ./scripts/setup
+
+      - name: The API actually answers
+        run: |
+          cd apps/api
+          uv run python manage.py runserver 0.0.0.0:8000 &
+          for i in $(seq 1 30); do
+            if curl -fsS --max-time 2 http://127.0.0.1:8000/healthz >/dev/null 2>&1; then
+              echo "API answered after ${i}s"; exit 0
+            fi
+            sleep 1
+          done
+          echo "API never answered — setup completed but produced nothing usable" >&2
+          exit 1
