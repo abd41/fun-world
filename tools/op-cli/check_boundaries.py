@@ -30,7 +30,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from owners import HUMAN, ROOT, SHARED, UNOWNED, load, resolve  # noqa: E402
+from owners import HUMAN, ROOT, SHARED, UNOWNED, accounts, load, resolve  # noqa: E402
 
 HOOK = """#!/bin/sh
 # Fun World pre-commit -- generated, do not edit by hand.
@@ -47,7 +47,20 @@ uv run python "$ROOT/tools/op-cli/check_constitution.py" --staged
 
 
 def agent_identity() -> str:
-    """The account agents commit as, from .env.local (GH_AGENT_USER)."""
+    """The account agents commit as.
+
+    OWNERS.yml first, .env.local only as a fallback. The order matters and was
+    the wrong way round: .env.local is gitignored, so it does not exist in CI.
+    Read from there alone, this returned "" on every CI run -- and "" means
+    `pending_author_is_agent()` says False, which means every agent commit
+    would have been waved through as human work by a check whose entire job is
+    to tell them apart. Silently, and reporting success.
+
+    A username is not a secret, so it belongs in the committed routing table.
+    The token stays in .env.local.
+    """
+    if name := accounts().get("agent", "").strip():
+        return name
     envfile = ROOT / ".env.local"
     if envfile.exists():
         for line in envfile.read_text(encoding="utf-8").splitlines():
@@ -88,6 +101,30 @@ def staged_files() -> list[str]:
     return [ln.strip() for ln in out.stdout.splitlines() if ln.strip()]
 
 
+TRAILER_HOOK = """#!/bin/sh
+# Fun World prepare-commit-msg -- generated, do not edit by hand.
+#
+# Records WHICH agent is committing, as a trailer, so a boundary claim can be
+# checked after the fact instead of argued about.
+#
+# FW_AGENT is the identity the boundary guard validates, and it used to live
+# only in this shell's environment -- gone the instant the commit finished. On
+# PR #15 that produced a dispute nobody could settle: a reviewer inferred an
+# agent from git authorship, the author answered that the hook had passed, and
+# neither could be checked. Every agent shares one GitHub account, so
+# authorship separates agent from human and nothing finer.
+#
+# $2 is the commit source. Skip merges and squashes: their message is assembled
+# from commits that already carry their own trailer, and appending another
+# would attribute someone else's work to whoever ran the merge.
+[ -n "$FW_AGENT" ] || exit 0
+case "$2" in
+  merge|squash) exit 0 ;;
+esac
+git interpret-trailers --in-place --if-exists replace --trailer "FW-Agent: $FW_AGENT" "$1"
+"""
+
+
 PUSH_HOOK = """#!/bin/sh
 # Fun World pre-push -- generated, do not edit by hand.
 exec uv run --with pyyaml python "$(git rev-parse --show-toplevel)/tools/op-cli/check_push.py"
@@ -102,19 +139,139 @@ def install() -> int:
     if not hooks.is_absolute():
         hooks = ROOT / hooks
     hooks.mkdir(parents=True, exist_ok=True)
-    for name, body in (("pre-commit", HOOK), ("pre-push", PUSH_HOOK)):
+    for name, body in (("pre-commit", HOOK), ("prepare-commit-msg", TRAILER_HOOK),
+                       ("pre-push", PUSH_HOOK)):
         path = hooks / name
         path.write_text(body, encoding="utf-8")
         path.chmod(0o755)
         print(f"installed {path}")
     print("commit: agents must set FW_AGENT; human commits are unrestricted")
+    print("msg:    FW_AGENT is recorded as an FW-Agent trailer, so CI can check it")
     print("push:   direct pushes to main are refused -- use a PR")
+    return 0
+
+
+def _git(*args: str) -> str:
+    return subprocess.run(["git", *args], capture_output=True, text=True,
+                          cwd=ROOT).stdout.strip()
+
+
+def violations_for(agent: str, files: list[str], cfg: dict) -> list[tuple[str, str, str]]:
+    """Every file in `files` that `agent` is not allowed to write."""
+    out = []
+    for f in files:
+        r = resolve(f, cfg)
+        if r.owner in (agent, SHARED):
+            continue
+        if r.owner == HUMAN:
+            reason = "human-owned — an agent may never write this"
+        elif r.owner == UNOWNED:
+            reason = "no OWNERS.yml rule covers it — add one, or this path has no owner"
+        elif r.owner.startswith("AMBIGUOUS"):
+            reason = f"two owners claim it ({r.owner.split(':', 1)[1]}) — add a precedence rule"
+        else:
+            reason = f"owned by {r.owner}"
+        out.append((f, reason, r.rule))
+    return out
+
+
+def check_range(rev_range: str) -> int:
+    """Enforcement layer 3: re-check every commit in a PR, where --no-verify cannot reach.
+
+    Layers 1 and 2 -- the agent's own definition, and the pre-commit hook --
+    are both local, and both are one `--no-verify` away from not existing.
+    This is the layer that survives that, which ADR-0007 has claimed all along
+    and nothing implemented.
+
+    Identity comes from the FW-Agent trailer, not from authorship. Authorship
+    cannot carry it: every agent commits as one account, so it separates agent
+    from human and nothing finer. An agent-authored commit with NO trailer is a
+    failure rather than a pass -- otherwise stripping the trailer would be a
+    way to opt out of the check, which is the same hole as a guard that skips
+    when its config is missing.
+    """
+    cfg = load()
+    identity = agent_identity()
+    if not identity:
+        # Refuse rather than pass. With no identity every commit looks human
+        # and this job would report success having checked nothing -- the exact
+        # failure it exists to catch.
+        print("REFUSING to run: no agent account is configured.", file=sys.stderr)
+        print("  Set `accounts.agent` in OWNERS.yml.", file=sys.stderr)
+        return 1
+
+    shas = [ln for ln in _git("rev-list", "--no-merges", rev_range).splitlines() if ln]
+    if not shas:
+        print(f"boundary guard: no commits in {rev_range}")
+        return 0
+
+    known = set(cfg["owners"])
+    failures: list[str] = []
+    for sha in shas:
+        author = _git("log", "-1", "--format=%an", sha)
+        subject = _git("log", "-1", "--format=%s", sha)
+        short = sha[:9]
+
+        if author.casefold() != identity.casefold():
+            print(f"  human   {short}  {subject}")
+            continue
+
+        trailer = _git("log", "-1", "--format=%(trailers:key=FW-Agent,valueonly)", sha).strip()
+        if not trailer:
+            failures.append(chr(10).join([
+                f"{short} {subject}",
+                "      Authored by the agent account with no FW-Agent trailer, so",
+                "      which agent wrote it cannot be determined and its boundary",
+                "      cannot be checked. Reinstall the hooks:",
+                "        python tools/op-cli/check_boundaries.py --install",
+            ]))
+            print(f"  FAIL    {short}  {subject}  (no FW-Agent trailer)")
+            continue
+
+        if trailer not in known:
+            failures.append(chr(10).join([
+                f"{short} {subject}",
+                f"      FW-Agent: {trailer!r} is not an agent in OWNERS.yml",
+            ]))
+            print(f"  FAIL    {short}  {subject}  (unknown agent {trailer!r})")
+            continue
+
+        files = [ln for ln in _git("show", "--pretty=format:", "--name-only",
+                                   "--diff-filter=ACMRT", sha).splitlines() if ln.strip()]
+        bad = violations_for(trailer, files, cfg)
+        if bad:
+            lines = [f"{short} {subject}",
+                     f"      {trailer} wrote {len(bad)} file(s) it does not own:"]
+            lines += [f"        {f}  — {why}  (via {rule})" for f, why, rule in bad]
+            failures.append(chr(10).join(lines))
+            print(f"  FAIL    {short}  {subject}  ({trailer}, {len(bad)} violation(s))")
+        else:
+            print(f"  ok      {short}  {subject}  ({trailer}, {len(files)} file(s))")
+
+    if failures:
+        print(file=sys.stderr)
+        print(f"BOUNDARY VIOLATION in {len(failures)} commit(s):", file=sys.stderr)
+        print(file=sys.stderr)
+        for f in failures:
+            print(f"  {f}", file=sys.stderr)
+            print(file=sys.stderr)
+        print("Do not widen OWNERS.yml to fix this — it is human-owned.", file=sys.stderr)
+        print("Split the work package so each child routes to its real owner:", file=sys.stderr)
+        print("    op-cli split --wp <id> --by-paths", file=sys.stderr)
+        return 1
+
+    print()
+    print(f"boundary guard: {len(shas)} commit(s) checked, all inside their agent's boundary")
     return 0
 
 
 def main() -> int:
     if "--install" in sys.argv:
         return install()
+
+    for i, arg in enumerate(sys.argv):
+        if arg == "--range":
+            return check_range(sys.argv[i + 1])
 
     agent = os.environ.get("FW_AGENT", "").strip()
     files = staged_files()

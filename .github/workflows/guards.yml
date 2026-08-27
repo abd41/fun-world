@@ -28,6 +28,42 @@ jobs:
       - run: uv run --with pyyaml python test_resolve.py
         working-directory: tools/op-cli
 
+  boundaries:
+    name: Agent boundaries (layer 3)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The range check walks every commit in the PR, so a shallow clone
+          # would silently check a subset. 0 = full history.
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v5
+      - name: CODEOWNERS still matches OWNERS.yml
+        run: uv run --with pyyaml python tools/op-cli/gen_codeowners.py --check
+      - name: No commit wrote outside its agent boundary (ADR-0007, constitution 8)
+        # This is the layer that survives --no-verify. The pre-commit hook is a
+        # convenience on one laptop; ADR-0007 has claimed a third layer since it
+        # was accepted and nothing implemented it, so PR #13 wrote to a
+        # HUMAN-owned path with nothing to flag it.
+        #
+        # Identity comes from the FW-Agent trailer, not from authorship: every
+        # agent commits as one account, so authorship separates agent from human
+        # and nothing finer. An agent commit with no trailer FAILS here rather
+        # than passing -- otherwise dropping the trailer opts you out of the
+        # check, which is the same hole as a guard that skips when misconfigured.
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          # A push to an unborn or force-updated ref gives an all-zero BASE.
+          # Falling back to HEAD~1 keeps the job honest instead of having it
+          # quietly check an empty range and report success.
+          if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ]; then
+            BASE="$(git rev-parse "$HEAD~1" 2>/dev/null || echo "$HEAD")"
+          fi
+          echo "range: $BASE..$HEAD"
+          uv run --with pyyaml python tools/op-cli/check_boundaries.py --range "$BASE..$HEAD"
+
   layering:
     name: Onion layers
     runs-on: ubuntu-latest

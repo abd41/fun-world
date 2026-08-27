@@ -1,0 +1,44 @@
+# CODEOWNERS -- GENERATED from OWNERS.yml. Do not edit by hand.
+#   regenerate:  python tools/op-cli/gen_codeowners.py
+#   verified by: check_drift.py, which fails if this drifts
+#
+# Enforcement layer 3 of 3 (ADR-0007). Layers 1 and 2 -- the agent's own
+# definition and the pre-commit hook -- are both local and both one
+# `--no-verify` away from not existing.
+#
+# What this file does: puts a human reviewer on the PR.
+# What it does NOT do: block the merge. There is no branch protection on a
+# private repo on the free tier, so a review request here is advisory.
+# The half that fails the build is the `boundaries` job in guards.yml.
+#
+# NOTE ON ORDER: CODEOWNERS is LAST match wins -- the opposite of
+# OWNERS.yml, which is first match wins. The catch-all is therefore first
+# and the specific paths follow it, which is the reverse of how OWNERS.yml
+# reads. Do not sort this file.
+
+# Every pull request gets a human reviewer. The PR template already
+# requires "a human approved"; this is that requirement, mechanised as far
+# as the platform allows.
+*   @abd41
+
+# Paths NO AGENT MAY EVER WRITE. These are the ones worth a person's eyes:
+# a spec is what a human approves, and an agent that could edit OWNERS.yml
+# could widen its own boundary from the inside.
+/OWNERS.yml                 @abd41
+/.specify/                  @abd41
+/.claude/                   @abd41
+/specs/                     @abd41
+/docs/adr/                  @abd41
+/docs/ARCHITECTURE.md       @abd41
+/.env                       @abd41
+/.env.*                     @abd41
+/.gitignore                 @abd41
+/package.json               @abd41
+/pnpm-workspace.yaml        @abd41
+/turbo.json                 @abd41
+/.importlinter              @abd41
+/apps/api/pyproject.toml    @abd41
+/apps/api/manage.py         @abd41
+/apps/api/config/           @abd41
+/scripts/                   @abd41
+/infra/                     @abd41
