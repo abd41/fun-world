@@ -125,22 +125,17 @@ def check_assets(path: Path, lines: list[str]) -> list[Finding]:
     return out
 
 
-# --- §12  packages/contracts is generated, never authored -------------------
-def check_contracts_not_authored() -> list[Finding]:
-    gen = ROOT / "packages" / "contracts"
-    if not gen.exists():
-        return []
-    # An empty directory is the skeleton, not un-marked generated output.
-    # T011 creates the real package; flagging it before then is noise, and a
-    # check that cries wolf before the code exists gets ignored when it matters.
-    if not any(gen.rglob("*.ts")) and not (gen / "package.json").exists():
-        return []
-    marker = gen / ".generated"
-    if not marker.exists():
-        return [Finding("12", gen / "README.md", 0,
-                        "packages/contracts has no .generated marker",
-                        "cannot tell generated output from hand-written code")]
-    return []
+# §12 (packages/contracts is generated, never authored) is deliberately NOT
+# checked here.
+#
+# The first attempt tested for a `.generated` marker file. That was wrong twice
+# over: hand-editing a file leaves the marker untouched, so it passes on exactly
+# the case it claimed to catch; and it invented a convention that exists nowhere
+# else in the repo and is absent from T011's instructions to contract-keeper.
+#
+# What actually detects hand-editing is regenerate-and-diff, which is §13 and is
+# scheduled as T016. A check that cannot fail for the reason it names is worse
+# than no check, because it occupies the space where a real one would go.
 
 
 CHECKS = [
@@ -165,7 +160,6 @@ def main() -> int:
             continue
         for _, fn in CHECKS:
             findings.extend(fn(path, lines))
-    findings.extend(check_contracts_not_authored())
 
     print(f"  checked {len(paths)} file(s)")
     for label, _ in CHECKS:

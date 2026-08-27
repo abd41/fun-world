@@ -10,8 +10,13 @@ Who is acting is read from FW_AGENT. With no FW_AGENT set, the commit is
 treated as a human commit and allowed -- a person may write anywhere. That is
 deliberate: this guard constrains agents, not you.
 
-    FW_AGENT=web-agent git commit -m "..."      # checked
+    FW_AGENT=web-agent git commit -m "..."      # checked against the allowlist
     git commit -m "..."                          # human, unrestricted
+
+ONE EXCEPTION. If the commit is authored as the agent account (GH_AGENT_USER)
+and FW_AGENT is unset, it is REFUSED rather than treated as human -- that is an
+agent that forgot the variable, and waving it through would let it write
+anywhere. Committing under your own identity is unaffected.
 
 Install:  python tools/op-cli/check_boundaries.py --install
 Manual:   FW_AGENT=web-agent python tools/op-cli/check_boundaries.py
@@ -29,9 +34,10 @@ from owners import HUMAN, ROOT, SHARED, UNOWNED, load, resolve  # noqa: E402
 
 HOOK = """#!/bin/sh
 # Fun World pre-commit -- generated, do not edit by hand.
-# Two guards, both cheap, each catching a class of silent failure:
-#   1. drift  -- OWNERS.yml vs what agents believe and what routing enforces
-#   2. bounds -- did the acting agent write outside its allowlist
+# Three guards, each catching a class of silent failure:
+#   1. drift        -- OWNERS.yml vs agent definitions vs routing vs the board
+#   2. bounds       -- did the acting agent write outside its allowlist
+#   3. constitution -- mechanically checkable rules, over staged files
 set -e
 ROOT="$(git rev-parse --show-toplevel)"
 uv run --with pyyaml python "$ROOT/tools/op-cli/check_drift.py" --offline

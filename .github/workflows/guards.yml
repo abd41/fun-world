@@ -44,3 +44,18 @@ jobs:
         # quietly. A guard that cannot fail is not a guard.
         working-directory: apps/api
         run: uv run --with import-linter lint-imports --config ../../.importlinter
+
+  constitution:
+    name: Constitution (mechanical rules)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - name: Rules a machine can settle without judgement
+        # Added after review-agent found that this check's own docstring
+        # claimed "they belong in CI where they cannot be skipped" while no
+        # workflow ran it -- it existed only in a pre-commit hook that
+        # --no-verify skips and scripts/setup never installs.
+        #
+        # Judgement calls are deliberately NOT here. They need a reader.
+        run: uv run python tools/op-cli/check_constitution.py

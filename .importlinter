@@ -15,7 +15,15 @@
 root_packages =
     catalog
     core
+    config
 include_external_packages = True
+; `config` is the Django project package -- settings, urls, wsgi. It was absent
+; from this list, so it was invisible to every contract: catalog.domain could
+; `import config.settings`, and through it django, environ and the entire
+; settings module, while all four contracts still reported KEPT. Verified by
+; adding that import and watching nothing complain.
+;
+; A layering contract that cannot see a package cannot constrain imports of it.
 
 [importlinter:contract:onion]
 name = Onion layers within catalog: dependencies point inward
@@ -51,6 +59,7 @@ forbidden_modules =
     pydantic
     requests
     httpx
+    config
 
 [importlinter:contract:domain-does-not-know-the-orm]
 name = catalog.domain does not import the ORM app
@@ -85,3 +94,4 @@ forbidden_modules =
     django
     ninja
     core
+    config

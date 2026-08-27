@@ -7,8 +7,12 @@ will either install it pointlessly or learn to ignore the output. So tools are
 grouped by the vertical that first needs them, and only the current phase is
 treated as blocking.
 
-    python tools/op-cli/check_toolchain.py            # everything, grouped
     python tools/op-cli/check_toolchain.py --phase 1  # fail if phase 1 is short
+    python tools/op-cli/check_toolchain.py            # SURVEY ONLY — exits 2
+
+Without --phase nothing is treated as blocking, so it exits 2 rather than 0. A
+survey that exits 0 is indistinguishable from a passing check, and wiring that
+into CI would look like a guard while being a no-op.
 """
 from __future__ import annotations
 
@@ -93,7 +97,12 @@ def main() -> int:
                 print(f"  {cmd:<9} {hints[cmd]}", file=sys.stderr)
         return 1
 
-    if args.phase:
+    # `is not None`, matching the test at the top of the loop. `if args.phase`
+    # is falsy for --phase 0, so the two disagreed: phase 0 counted as "a phase
+    # was given" when deciding what blocks, and as "no phase" when deciding the
+    # exit code. Phase 0 is not a real phase today, which is exactly why this
+    # would have sat here until it was.
+    if args.phase is not None:
         print(f"\nphase {args.phase} toolchain complete")
         return 0
 

@@ -129,14 +129,27 @@ def main() -> int:
     cfg = load()
     offline = "--offline" in sys.argv
 
+    # The board check is ALWAYS in this list. It used to be appended only when
+    # `not offline`, which meant --offline removed it entirely: `skipped` stayed
+    # empty, the summary block was never reached, and the run printed "no drift
+    # — consistent across every surface" having never looked at one of them.
+    # Both callers pass --offline, so that was every automated run.
+    #
+    # An omitted check and a skipped check are the same lie told differently.
+    # Now it always runs and always reports; --offline only says the skip is
+    # expected, which changes the exit code, not the honesty of the output.
+    def board_check() -> list[str]:
+        if offline:
+            raise Skipped("--offline was passed")
+        return check_board(cfg)
+
     checks = [
         ("agent roster matches OWNERS.yml", lambda: check_agent_roster(cfg)),
         ("agent definitions state their real paths", lambda: check_agent_content(cfg)),
         ("definitions match a fresh generation", check_regenerates_clean),
         ("routing resolves as intended", check_routing),
+        ("board Agent field matches OWNERS.yml", board_check),
     ]
-    if not offline:
-        checks.append(("board Agent field matches OWNERS.yml", lambda: check_board(cfg)))
 
     failures: list[str] = []
     skipped: list[str] = []
