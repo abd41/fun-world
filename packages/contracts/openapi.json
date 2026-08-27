@@ -32,7 +32,7 @@
   "paths": {
     "/api/health": {
       "get": {
-        "description": "Cheapest possible proof the API is up and reachable.\n\n`scripts/setup` and the clean-runner CI job both poll this, so the scaffold\nis verifiable before any feature endpoint exists. It also gives the phone a\nway to distinguish \"cannot reach the server\" from \"server is up but has no\ntitles\" — the two states FR-008 requires be told apart.",
+        "description": "Cheapest possible proof the API is up and reachable.\n\nGives a client a way to distinguish \"cannot reach the server\" from \"server\nis up but has no titles\" — the two states FR-008 requires be told apart.\n\nThis docstring is published: django-ninja puts it in `openapi.json`, which\nputs it in `sdk.gen.ts`, which both clients read. It previously claimed\n`scripts/setup` and the clean-runner CI job \"both poll this\". Neither does\n— setup makes no HTTP call at all, and the workflow polls `/healthz` below.\nThe line was wrong when written and this change is the first thing that\nwould have shipped it to a client.",
         "operationId": "health",
         "parameters": [],
         "responses": {

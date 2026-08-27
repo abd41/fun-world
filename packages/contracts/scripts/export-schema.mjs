@@ -17,8 +17,8 @@
  * `export_openapi_schema` reads the router definitions through Django's app
  * registry. It touches no database and opens no socket -- verified against a
  * DATABASE_URL pointing at a dead port. So regeneration is a pure function of
- * the committed source, which is what makes SC-005's empty-diff check mean
- * something.
+ * the committed source, which is what makes the empty-diff check
+ * (SC-003) mean something.
  *
  * ## Determinism
  *

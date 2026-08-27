@@ -11,5 +11,5 @@
     "forceConsistentCasingInFileNames": true,
     "verbatimModuleSyntax": true
   },
-  "include": ["src", "openapi-ts.config.ts", "scripts"]
+  "include": ["src", "runtime", "openapi-ts.config.ts", "scripts"]
 }

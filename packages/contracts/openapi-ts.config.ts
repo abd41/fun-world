@@ -15,8 +15,9 @@ export default defineConfig({
     // one -- a false failure that trains people to bypass it.
     postProcess: [],
   },
-  // Written beside the package rather than into it; a log file appearing in a
-  // generated directory would show up as contract drift.
+  // No log file at all. hey-api writes one by default, and a log appearing
+  // under a generated directory would show up as contract drift on the very
+  // next run of the gate.
   logs: { file: false },
   plugins: [
     "@hey-api/typescript",

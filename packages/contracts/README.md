@@ -37,21 +37,32 @@ already gone green while enforcing nothing for exactly that reason.
 `export_openapi_schema` reads the routers through Django's app registry. It
 opens no socket and touches no database — verified with `DATABASE_URL` pointing
 at a dead port. So regeneration is a pure function of committed source, which is
-what makes the empty-diff check (SC-005) mean anything.
+what makes the empty-diff check (SC-003) mean anything.
 
 ## Using it
 
-`baseUrl` is required and has no default. The OpenAPI document declares
-`servers: []`, so there is nothing for a client to fall back to — §7 enforced by
-absence rather than by review.
+Build the client with `createApiClient`, **not** the generated `createClient`.
 
 ```ts
-import { createClient } from "@fun-world/contracts/client";
+import { createApiClient } from "@fun-world/contracts/runtime";
 import { listTitles } from "@fun-world/contracts";
 
-const client = createClient({ baseUrl: process.env.NEXT_PUBLIC_API_URL! });
+const client = createApiClient({ baseUrl: process.env.NEXT_PUBLIC_API_URL! });
 const { data, error } = await listTitles({ client });
 ```
+
+This README used to claim `baseUrl` was required and that §7 was "enforced by
+absence" because the document declares `servers: []`. Review checked, and it was
+false: hey-api types `baseUrl` as optional, so `createClient()` compiles, and
+`getUrl` then does `(baseUrl ?? "") + path` and issues a **same-origin** request.
+
+Nothing errors. The phone renders "cannot reach the server" while the server is
+perfectly healthy, because the request went to the phone's own origin — the
+exact FR-007/FR-008 pair this vertical exists to prove cannot happen.
+
+So `runtime/client.ts` imposes the requirement where TypeScript can hold it:
+`baseUrl` is required at the type level, and blank or whitespace-only throws at
+runtime. It is authored, not generated, which is why it sits outside `src/`.
 
 `data` is `TitleOut[]`, `error` is set when the request fails. An empty catalog
 is `data === []`, **not** an error — FR-008 needs those two states to stay
