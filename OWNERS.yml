@@ -221,6 +221,26 @@ owners:
       Owns op-cli and keeps the OpenProject board in sync with reality.
       Never writes application code.
 
+  review-agent:
+    lang: both
+    # Writes NOTHING. Its whole output is pull-request comments.
+    #
+    # It must not be able to approve, either: an agent that can approve turns
+    # the review gate into theatre. It comments; only a human approves. That
+    # asymmetry is the point of the role, not a limitation of it.
+    #
+    # Its job is to REDUCE what the human has to read, never to replace the
+    # human reading it — so it reports mechanical violations precisely and
+    # leaves judgement calls explicitly flagged rather than resolved.
+    writes: []
+    reads: ["**"]
+    job: >
+      Reviews every pull request against the constitution, the ADRs and the
+      spec the ticket cites. Comments only — it can neither write code nor
+      approve. Flags constitution violations, boundary escapes, missing tests
+      for a cited acceptance criterion, and drift between the code and the
+      decision it claims to implement.
+
 # ---------------------------------------------------------------------------
 # Board mapping — OpenProject custom fields (project: fun-world)
 #   customField1 Agent    customField2 Paths     customField3 Spec

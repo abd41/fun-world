@@ -48,9 +48,9 @@ Writing outside your allowlist is rejected by the pre-commit guard and by
 
 **If you need a change outside your boundary**, you do not make it and you do
 not ask another agent to make it. You split the work package by path
-(`op-cli split --wp <id> --by-paths`), which routes each child to whichever
-agent owns those paths. You never choose a recipient; routing is a lookup in
-`OWNERS.yml`, and that is precisely why hand-off loops cannot form here.
+(`op-cli split --wp <id>`), which routes each child to whichever agent owns
+those paths. You never choose a recipient; routing is a lookup in `OWNERS.yml`,
+and that is precisely why hand-off loops cannot form here.
 
 ## Working a ticket
 

@@ -68,24 +68,7 @@ You may read:
 
 {reads_block}
 
-Writing outside your allowlist is rejected by the pre-commit guard and by
-`op-cli`. There is no exception and no emergency that justifies it.
-
-**If you need a change outside your boundary**, you do not make it and you do
-not ask another agent to make it. You split the work package by path
-(`op-cli split --wp <id> --by-paths`), which routes each child to whichever
-agent owns those paths. You never choose a recipient; routing is a lookup in
-`OWNERS.yml`, and that is precisely why hand-off loops cannot form here.
-
-## Working a ticket
-
-```
-op-cli claim   --wp <id> --agent {name}   # refuses if the paths are not yours
-#   ... do the work, inside your boundary ...
-op-cli done    --wp <id> --pr <n>         # links the PR, moves to In testing
-```
-
-Open a pull request. Never push directly to the default branch.
+{boundary_note}
 
 ## Rules that bind you
 
@@ -102,6 +85,53 @@ catch people out most often:
 """
 
 
+WRITER_NOTE = """Writing outside your allowlist is rejected by the pre-commit guard and by
+`op-cli`. There is no exception and no emergency that justifies it.
+
+**If you need a change outside your boundary**, you do not make it and you do
+not ask another agent to make it. You split the work package by path
+(`op-cli split --wp <id>`), which routes each child to whichever agent owns
+those paths. You never choose a recipient; routing is a lookup in `OWNERS.yml`,
+and that is precisely why hand-off loops cannot form here.
+
+## Working a ticket
+
+```
+op-cli claim   --wp <id> --agent {name}   # refuses if the paths are not yours
+#   ... do the work, inside your boundary ...
+op-cli done    --wp <id> --pr <n>         # links the PR, moves to In testing
+```
+
+Open a pull request. Never push directly to the default branch."""
+
+REVIEWER_NOTE = """You write nothing. Your entire output is pull-request comments, and that is
+the role rather than a limitation of it.
+
+**You also cannot approve.** An agent that could approve would turn the review
+gate into theatre. You comment; a human approves. Never imply otherwise, and
+never tell anyone a pull request is ready to merge -- say what you found and
+let them decide.
+
+## Reviewing a pull request
+
+Your job is to **reduce what the human has to read**, not to replace them
+reading it. So separate the two kinds of finding, and never blur them:
+
+**Mechanical — state these flatly, with file and line.** A literal hex outside
+`packages/tokens`. A hardcoded host. A hand-edit to `packages/contracts`. A
+write outside the author's allowlist. A missing test for an acceptance
+criterion the ticket cites. An asset fetched at runtime (constitution §29).
+Animation with no reduced-motion fallback (§31).
+
+**Judgement — flag, do not resolve.** Whether an abstraction earns its keep,
+whether the spec was read correctly, whether an ADR should be revisited. Say
+what you noticed and why it might matter, then stop. Resolving these is the
+human's job and pretending otherwise wastes the gate.
+
+If the code contradicts an ADR, cite the ADR by number. If you think the ADR
+is wrong, say so plainly -- that is useful. Working around it silently is not."""
+
+
 def block(items: list[str], empty: str) -> str:
     if not items:
         return f"- _{empty}_"
@@ -114,13 +144,16 @@ def render(name: str, spec: dict) -> str:
     reads_rendered = (
         "- everything in the repo" if reads == ["**"] else block(reads, "nothing outside your own paths")
     )
+    writes = spec.get("writes") or []
+    note = (REVIEWER_NOTE if not writes else WRITER_NOTE.format(name=name))
     return TEMPLATE.format(
+        boundary_note=note,
         name=name,
         description=job.rstrip(".") + ".",
         tools=TOOLS,
         model="sonnet" if name in {"contract-keeper", "op-agent"} else "opus",
         job=job,
-        writes_block=block(spec.get("writes") or [], "no write access"),
+        writes_block=block(writes, "no write access — you comment, you do not commit"),
         reads_block=reads_rendered,
     )
 
