@@ -18,7 +18,7 @@ The three things most likely to go wrong, and where each is handled:
 
 | Risk | Handled by |
 |---|---|
-| The phone cannot reach the API (`localhost` resolves to the phone) | One host value, detected at setup, flowing to all three clients (§FR-007) |
+| The phone cannot reach the API (`localhost` resolves to the phone) | One **configurable** `FW_HOST` flowing to all three clients; auto-detected only as a fallback, never overwriting a set value, so swapping to a VPN hostname later is a one-line edit (§FR-007) |
 | Setup works only on this machine | `scripts/setup`, proven on a runner that starts with nothing (§FR-012) |
 | Five paths no agent can claim, so tasks deadlock | `OWNERS.yml` amendment, **before any other task** |
 

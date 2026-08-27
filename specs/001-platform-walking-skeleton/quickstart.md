@@ -31,8 +31,23 @@ Fun World is up.
   elapsed  4m12s
 ```
 
-`FW_HOST` is detected, never typed (R2). If it differs from last run, DHCP moved
-the laptop and the phone needs the new value — re-running setup is the fix.
+`FW_HOST` is **configurable, and only auto-detected as a fallback** (R2). Setup
+reports which source it used and never overwrites a value you have set.
+
+To pin it — recommended once a VPN is in place, and the end state this design
+exists for:
+
+```bash
+echo 'FW_HOST=funworld.tailnet.ts.net' >> .env
+./scripts/setup                        # reports "from .env — not overwritten"
+```
+
+Nothing parses `FW_HOST` as an IP address, so a MagicDNS name, an mDNS name and
+a bare address are all valid. Swapping to the VPN later is this one line — no
+code change, nothing in `apps/` aware anything moved.
+
+While it is auto-detected, DHCP can move the laptop and the phone will stop
+working until setup is re-run. Pinning it removes that failure entirely.
 
 ## Proving each criterion
 

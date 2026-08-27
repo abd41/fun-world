@@ -69,22 +69,48 @@ fetches from the user's machine, where it is correct only by coincidence. The
 phone needs the LAN IP in both cases. Three contexts, three correct answers,
 one wrong value away from a bug that appears only on the device.
 
-**Decision**: A single detected `FW_HOST`, written once by `scripts/setup`, fanned
-out to per-client variables that are *derived*, never typed by hand.
+**Decision**: A single **configurable** `FW_HOST`, auto-detected only as a
+fallback, fanned out to per-client variables that are *derived*, never typed by
+hand.
+
+Resolution order — **first match wins, and detection is last**:
 
 ```
-scripts/setup detects the LAN IPv4 (excluding loopback, link-local,
-and virtual adapters such as WSL/Hyper-V) and writes .env:
-
-  FW_HOST=192.168.0.106          <- the only place an address is written
-
-then derives, into each client's env file:
-  apps/api    ALLOWED_HOSTS=localhost,127.0.0.1,${FW_HOST}
-              (Django binds 0.0.0.0 so it accepts on every interface)
-  apps/web    API_URL_INTERNAL=http://localhost:8000      server components
-              NEXT_PUBLIC_API_URL=http://${FW_HOST}:8000  browser
-  apps/mobile EXPO_PUBLIC_API_URL=http://${FW_HOST}:8000  always the LAN IP
+1. FW_HOST set in the environment          an explicit override, e.g. CI or a one-off
+2. FW_HOST set in .env                     a human wrote it — NEVER overwritten
+3. auto-detected LAN IPv4                  the convenience default
 ```
+
+`scripts/setup` reports which source it used, so the value is never a mystery:
+
+```
+FW_HOST  funworld.tailnet.ts.net   (from .env — not overwritten)
+FW_HOST  192.168.0.106             (auto-detected — set FW_HOST in .env to pin it)
+```
+
+It then derives, and only these are consumed by application code:
+
+```
+apps/api    ALLOWED_HOSTS=localhost,127.0.0.1,${FW_HOST}
+            (Django binds 0.0.0.0 so it accepts on every interface)
+apps/web    API_URL_INTERNAL=http://localhost:8000      server components
+            NEXT_PUBLIC_API_URL=http://${FW_HOST}:8000  browser
+apps/mobile EXPO_PUBLIC_API_URL=http://${FW_HOST}:8000
+```
+
+**Why the override comes first, and matters more than the detection.** The
+detected LAN IP is a convenience for today; it is not where this ends up. Once
+Tailscale is installed (ADR-0013), `FW_HOST` becomes a MagicDNS name that
+resolves identically at home and away, and DHCP stops mattering entirely.
+
+Making the override first-class now means that migration is **editing one line
+in `.env`** — no code change, no rebuild, nothing in `apps/` aware that anything
+moved. A setup script that overwrote a hand-set value would actively fight that,
+and would do so silently.
+
+`FW_HOST` is deliberately a *host*, not an IP, in every consumer: nothing parses
+it, validates it as four octets, or assumes it is numeric. `192.168.0.106`,
+`funworld.tailnet.ts.net` and `funworld.local` are all valid values.
 
 **Rationale**: The value is detected rather than configured, so it is correct on
 first run and cannot be forgotten. It is written in exactly one place, so a
@@ -95,18 +121,30 @@ specific mistake that produces "works in the browser, 500s on hard refresh".
 **Alternatives considered**:
 
 - *`localhost` everywhere.* Rejected: fails on the phone, which is FR-004.
-- *A hostname via mDNS (`funworld.local`).* Genuinely attractive — survives DHCP
-  changes. Rejected for this vertical: Android's mDNS support is inconsistent
-  and debugging a name-resolution failure on a handset would dominate a vertical
-  whose purpose is proving the pipeline. Revisit at vertical 006.
-- *Tailscale MagicDNS.* The eventual answer (ADR-0013) and immune to DHCP. Not
-  yet installed, and adding a VPN to the critical path of the first vertical
-  couples "does the pipeline work" to "does the VPN work".
+- *Auto-detect with no override.* Rejected — this was the first draft of this
+  decision. It works today and blocks the VPN migration tomorrow, because the
+  script would overwrite a deliberately-set value every run. The override is now
+  the primary path and detection the fallback.
+- *A hostname via mDNS (`funworld.local`).* Attractive — survives DHCP. Not
+  chosen as the *default* for this vertical because Android's mDNS support is
+  inconsistent, and debugging name resolution on a handset would dominate a
+  vertical whose purpose is proving the pipeline. But it is now a valid
+  `FW_HOST` value, so anyone can opt in without a code change.
+- *Tailscale MagicDNS.* The intended destination (ADR-0013), immune to DHCP, and
+  reachable from outside the house. Not installed yet, and putting a VPN on the
+  critical path of the first vertical couples "does the pipeline work" to "does
+  the VPN work". **The design above is what makes adopting it a one-line edit**
+  rather than a refactor.
 - *Hardcode and document it.* Rejected outright by FR-007.
 
-**Known limitation, accepted**: DHCP can reassign the laptop's address, breaking
-the phone until `scripts/setup` is re-run. `setup` will detect and report a
-changed `FW_HOST` rather than failing obscurely.
+**Known limitation, accepted**: while `FW_HOST` is auto-detected, DHCP can
+reassign the laptop's address and break the phone until `scripts/setup` is
+re-run. Setup reports a changed value rather than failing obscurely.
+
+Nothing currently *notices* the change on its own — the phone simply stops
+working. That is acceptable only because the fix is one command, and because
+this failure mode disappears the moment `FW_HOST` is pinned to a VPN name.
+Pinning it is the recommended end state, not the fallback.
 
 ---
 
