@@ -50,7 +50,7 @@ def version_of(cmd: str, args: list[str]) -> str | None:
     if not shutil.which(cmd):
         return None
     try:
-        r = subprocess.run([cmd, *args], capture_output=True, text=True, timeout=30)
+        r = subprocess.run([cmd, *args], capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=30)
         line = (r.stdout or r.stderr).strip().splitlines()
         return line[0][:60] if line else "(no version output)"
     except Exception:

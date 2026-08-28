@@ -65,7 +65,7 @@ def check_regenerates_clean() -> list[str]:
     """Regenerating produces no change -- the strongest form of the check."""
     r = subprocess.run(
         [sys.executable, str(HERE / "gen_agents.py"), "--check"],
-        capture_output=True, text=True, cwd=ROOT,
+        capture_output=True, text=True, encoding="utf-8", errors="replace", cwd=ROOT,
     )
     if r.returncode == 0:
         return []
@@ -83,7 +83,7 @@ def check_codeowners() -> list[str]:
     """
     r = subprocess.run(
         [sys.executable, str(HERE / "gen_codeowners.py"), "--check"],
-        capture_output=True, text=True, cwd=ROOT,
+        capture_output=True, text=True, encoding="utf-8", errors="replace", cwd=ROOT,
     )
     if r.returncode == 0:
         return []
@@ -93,7 +93,7 @@ def check_codeowners() -> list[str]:
 
 def check_routing() -> list[str]:
     r = subprocess.run([sys.executable, str(HERE / "test_resolve.py")],
-                       capture_output=True, text=True, cwd=HERE)
+                       capture_output=True, text=True, encoding="utf-8", errors="replace", cwd=HERE)
     if r.returncode == 0:
         return []
     failed = [ln for ln in r.stdout.splitlines() if ln.startswith("FAIL")]

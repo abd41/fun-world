@@ -46,7 +46,7 @@ def files_to_check(staged_only: bool) -> list[Path]:
     if staged_only:
         out = subprocess.run(
             ["git", "diff", "--cached", "--name-only", "--diff-filter=ACMRT"],
-            capture_output=True, text=True, cwd=ROOT,
+            capture_output=True, text=True, encoding="utf-8", errors="replace", cwd=ROOT,
         ).stdout
         paths = [ROOT / p.strip() for p in out.splitlines() if p.strip()]
     else:

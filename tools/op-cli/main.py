@@ -99,7 +99,7 @@ def pr_state(number: int) -> dict:
     r = subprocess.run(
         ["gh", "pr", "view", str(number), "--json",
          "state,mergedAt,reviewDecision,author,url"],
-        capture_output=True, text=True,
+        capture_output=True, text=True, encoding="utf-8", errors="replace",
     )
     if r.returncode != 0:
         return {"error": (r.stderr or r.stdout).strip().splitlines()[0] if (r.stderr or r.stdout) else "gh failed"}

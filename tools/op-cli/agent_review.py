@@ -59,7 +59,7 @@ def gh_api(method: str, path: str, token: str, body: dict | None = None) -> dict
         cmd += ["--input", "-"]
     r = subprocess.run(
         cmd, input=json.dumps(body) if body is not None else None,
-        capture_output=True, text=True, cwd=ROOT,
+        capture_output=True, text=True, encoding="utf-8", errors="replace", cwd=ROOT,
         env={**os.environ, "GH_TOKEN": token},
     )
     raw = (r.stdout or r.stderr or "").strip()
