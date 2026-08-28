@@ -4,7 +4,7 @@ Next.js 16, App Router, TypeScript. Also the target for the LG webOS television,
 which runs this app in the TV's browser rather than the Expo build.
 
 Vertical 001 scope: **one page that lists every title's name**, and nothing else.
-There is no styling and no stylesheet — `packages/tokens` is empty and §14 fails
+There is no styling and no stylesheet — `packages/tokens` does not exist yet and §14 fails
 the build on a literal colour, so unstyled text is the correct output here, not a
 shortcut. The design system arrives in vertical 002.
 

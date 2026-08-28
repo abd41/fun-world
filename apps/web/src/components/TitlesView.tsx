@@ -7,8 +7,8 @@
  * bug FR-008 is about.
  *
  * No styling, deliberately: vertical 001 is proving the wiring, and the design
- * system arrives in vertical 002. `packages/tokens` is empty, and §14 fails the
- * build on a literal colour — so there is no legitimate way to style this yet,
+ * system arrives in vertical 002. `packages/tokens` does not exist yet, and §14
+ * fails the build on a literal colour — so there is no legitimate way to style this yet,
  * and unstyled text is the correct output rather than a shortcut.
  */
 import type { TitlesResult } from "@/lib/titles";

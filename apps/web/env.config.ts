@@ -17,8 +17,10 @@
  *
  *   - copy the host into `apps/web/.env`  — a second copy of the one value
  *     that must never have two copies; DHCP moves one and not the other
- *   - symlink `apps/web/.env` to the root — does not survive a Windows
- *     checkout, and `.env*` is gitignored so nothing would carry the link
+ *   - symlink `apps/web/.env` to the root — `.env*` is gitignored, so nothing
+ *     would carry the link to another checkout at all; and this machine has
+ *     `core.symlinks=false`, where git materialises a symlink as a text file
+ *     containing its target rather than as a link
  *   - read the root `.env` here, at config load  — no second copy, no
  *     platform assumption. This.
  *
@@ -81,12 +83,27 @@ function findRepoRoot(startDir: string): string {
 /**
  * Minimal `KEY=VALUE` reader for the repository-root `.env`.
  *
- * Deliberately not `@next/env`'s `loadEnvConfig`: that function memoises the
- * first directory it is called with, and Next has already called it for
- * `apps/web` by the time `next.config.ts` runs. A second call for the root
- * returns the cache and reads nothing — a silent no-op of exactly the shape
- * this repository keeps shipping. Forcing a reload is possible but resets
- * `process.env`, which is a larger side effect than reading one file.
+ * Deliberately not `@next/env`'s `loadEnvConfig`. Checked against the shipped
+ * source rather than assumed — `@next/env@16.3.3`, `dist/index.js`:
+ *
+ *     function loadEnvConfig(t,n,o=console,s=false,i){
+ *       if(!a){a=Object.assign({},process.env)}
+ *       if(l&&!s){return{combinedEnv:l,parsedEnv:p,loadedEnvFiles:u}}
+ *       replaceProcessEnv(a); ...
+ *
+ * `l` is module-level state and `s` is `forceReload`, so once any call has
+ * populated the cache a later call returns it — the directory argument is not
+ * consulted at all. Were Next to load env for `apps/web` before this config is
+ * evaluated, a call here for the repository root would read nothing and report
+ * success: a silent no-op of exactly the shape this repository keeps shipping.
+ * Passing `forceReload` skips the cache but then reaches `replaceProcessEnv`,
+ * which resets `process.env` to a snapshot — a much larger side effect than
+ * reading one file.
+ *
+ * NOT verified: whether Next does in fact call it for `apps/web` first. That
+ * ordering is what the risk turns on and it was not observed; only the cache
+ * behaviour above was. Reading the file directly makes the ordering moot,
+ * which is why this does not depend on settling it.
  *
  * Handles comments, blank lines, `export ` prefixes and surrounding quotes.
  * It does not do variable interpolation, and nothing in this project needs it.
