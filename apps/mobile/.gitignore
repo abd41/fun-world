@@ -1,0 +1,12 @@
+# The repo-root .gitignore already covers node_modules/, dist/ and .expo/ at
+# any depth — checked with `git check-ignore -v apps/mobile/.expo`, which
+# reports .gitignore:17. Only what it does not cover belongs here.
+
+# Metro leaves this behind when a dev server exits badly.
+.metro-health-check*
+
+# `expo prebuild` writes real native projects here. This app runs in Expo Go
+# and nothing in CI prebuilds it, so if these appear they were generated
+# locally and are not source.
+/android
+/ios
