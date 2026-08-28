@@ -1,0 +1,25 @@
+# Next.js build output and local caches. The repository-root .gitignore already
+# covers .next/ and node_modules/; these are the entries specific to this app.
+/.next/
+/out/
+next-env.d.ts
+*.tsbuildinfo
+
+# Never create one of these. The single host value lives in the repository-root
+# .env and is read by env.config.ts — a copy here is a second source of truth
+# that DHCP will move out from under you (research R2).
+.env
+.env.*
+
+# Written into this directory by `next dev` on every run — see
+# node_modules/next/dist/server/lib/generate-agent-files.js, which was checked
+# rather than taken on trust. They are agent instructions, and this repository
+# deliberately keeps agent instructions human-owned (OWNERS.yml holds
+# `.claude/**` under HUMAN so that an agent cannot author the rules it is read
+# under). An agent committing a file of agent instructions cuts against that,
+# so they are ignored here rather than added by web-agent.
+#
+# This is a decision for a person to overturn, not a permanent one: delete
+# these two lines and commit the files if you want them tracked.
+AGENTS.md
+CLAUDE.md
