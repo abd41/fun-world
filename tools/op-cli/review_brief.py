@@ -40,7 +40,7 @@ MAX_DIFF_CHARS = 60_000
 
 
 def gh(args: list[str]) -> str:
-    # encoding="utf-8" explicitly. `text=True` alone decodes with the LOCALE
+    # encoding="utf-8" explicitly. A bare `text=True` decodes with the LOCALE
     # codec, which on this machine is cp1252 -- so any diff containing a
     # character outside Latin-1 killed this script with UnicodeDecodeError.
     #

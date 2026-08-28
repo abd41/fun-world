@@ -98,7 +98,7 @@ def pending_author() -> tuple[str, str]:
     reflected rather than the repository default.
     """
     out = subprocess.run(
-        ["git", "var", "GIT_AUTHOR_IDENT"], capture_output=True, text=True, cwd=ROOT
+        ["git", "var", "GIT_AUTHOR_IDENT"], capture_output=True, text=True, encoding="utf-8", errors="replace", cwd=ROOT
     ).stdout.strip()
     if "<" not in out:
         return out.strip(), ""
@@ -116,7 +116,7 @@ def pending_author_is_agent() -> bool:
 def staged_files() -> list[str]:
     out = subprocess.run(
         ["git", "diff", "--cached", "--name-only", "--diff-filter=ACMRT"],
-        capture_output=True, text=True, cwd=ROOT,
+        capture_output=True, text=True, encoding="utf-8", errors="replace", cwd=ROOT,
     )
     return [ln.strip() for ln in out.stdout.splitlines() if ln.strip()]
 
@@ -154,7 +154,7 @@ exec uv run --with pyyaml python "$(git rev-parse --show-toplevel)/tools/op-cli/
 def install() -> int:
     hooks = Path(
         subprocess.run(["git", "rev-parse", "--git-path", "hooks"],
-                       capture_output=True, text=True, cwd=ROOT).stdout.strip()
+                       capture_output=True, text=True, encoding="utf-8", errors="replace", cwd=ROOT).stdout.strip()
     )
     if not hooks.is_absolute():
         hooks = ROOT / hooks
@@ -184,7 +184,7 @@ def _git(*args: str) -> str:
     produced "no commits in <range>" and exit 0. A guard that reports success
     because its input was broken is the failure this whole job exists to catch.
     """
-    r = subprocess.run(["git", *args], capture_output=True, text=True, cwd=ROOT)
+    r = subprocess.run(["git", *args], capture_output=True, text=True, encoding="utf-8", errors="replace", cwd=ROOT)
     if r.returncode != 0:
         raise GitFailed("git " + " ".join(args) + " failed: " + r.stderr.strip())
     return r.stdout.strip()

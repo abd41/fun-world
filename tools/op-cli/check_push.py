@@ -29,7 +29,7 @@ PROTECTED = {"main", "master"}
 def current_branch() -> str:
     return subprocess.run(
         ["git", "rev-parse", "--abbrev-ref", "HEAD"],
-        capture_output=True, text=True,
+        capture_output=True, text=True, encoding="utf-8", errors="replace",
     ).stdout.strip()
 
 
