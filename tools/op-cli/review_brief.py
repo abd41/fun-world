@@ -40,7 +40,23 @@ MAX_DIFF_CHARS = 60_000
 
 
 def gh(args: list[str]) -> str:
-    r = subprocess.run(["gh", *args], capture_output=True, text=True, cwd=ROOT)
+    # encoding="utf-8" explicitly. `text=True` alone decodes with the LOCALE
+    # codec, which on this machine is cp1252 -- so any diff containing a
+    # character outside Latin-1 killed this script with UnicodeDecodeError.
+    #
+    # It went unnoticed because em-dashes ARE in cp1252, so every earlier brief
+    # worked. It first failed on a PR whose tests used Japanese text, and it
+    # failed in the worst available way: the caller redirects stdout to a file,
+    # so the traceback landed IN the brief. A 26-line "brief" containing a
+    # Python stack trace would have been handed to review-agent, which would
+    # have reviewed the traceback and reported on a diff it never saw.
+    #
+    # errors="replace" so one undecodable byte degrades a character rather than
+    # losing the whole review.
+    r = subprocess.run(
+        ["gh", *args], capture_output=True, cwd=ROOT,
+        encoding="utf-8", errors="replace",
+    )
     if r.returncode != 0:
         print(f"gh {' '.join(args)} failed:\n{r.stderr}", file=sys.stderr)
         raise SystemExit(1)
@@ -80,9 +96,24 @@ def main() -> int:
     ap.add_argument("--pr", type=int, required=True)
     a = ap.parse_args()
 
+    # The brief is written to a FILE by the caller (`> brief.md`), so anything
+    # this script prints becomes the brief. stdout must therefore be UTF-8
+    # regardless of the console codepage -- otherwise a Japanese test fixture
+    # in the diff crashes print() and the traceback becomes the review.
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
     meta = json.loads(gh(["pr", "view", str(a.pr), "--json",
                           "title,body,headRefName,author,files"]))
     diff = gh(["pr", "diff", str(a.pr)])
+
+    # An empty diff means the brief would contain no code to review, and a
+    # reviewer handed it would report "nothing wrong" having seen nothing.
+    # Refuse loudly instead: this script's output IS the review's input, so a
+    # silent degradation here is a review that never happened.
+    if not diff.strip():
+        print(f"REFUSING: `gh pr diff {a.pr}` returned nothing. "
+              "A brief with no diff produces a review of nothing.", file=sys.stderr)
+        return 1
     truncated = len(diff) > MAX_DIFF_CHARS
     if truncated:
         diff = diff[:MAX_DIFF_CHARS]
