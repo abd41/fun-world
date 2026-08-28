@@ -217,12 +217,17 @@ def check_range(rev_range: str) -> int:
     This is the layer that survives that, which ADR-0007 has claimed all along
     and nothing implemented.
 
-    Identity comes from the FW-Agent trailer, not from authorship. Authorship
-    cannot carry it: every agent commits as one account, so it separates agent
-    from human and nothing finer. An agent-authored commit with NO trailer is a
-    failure rather than a pass -- otherwise stripping the trailer would be a
-    way to opt out of the check, which is the same hole as a guard that skips
-    when its config is missing.
+    Identity comes from the FW-Agent trailer, and the trailer is read FIRST --
+    authorship is only consulted when there is no trailer. That order is the
+    correction to this function's first version, which gated the trailer behind
+    authorship and so discarded the exact evidence it claimed to rely on:
+    `--no-verify` does not skip prepare-commit-msg, so a bypassing commit still
+    SAYS `FW-Agent: <name>`, and it was being filed as human work anyway.
+
+    A commit with no trailer, authored under a declared agent identity, is a
+    failure rather than a pass -- otherwise stripping the trailer would be a way
+    to opt out, which is the same hole as a guard that skips when misconfigured.
+    A commit with no trailer authored by a human is unrestricted, by design.
     """
     cfg = load()
     if not agent_identities():
@@ -257,24 +262,42 @@ def check_range(rev_range: str) -> int:
         subject = _git("log", "-1", "--format=%s", sha)
         short = sha[:9]
 
-        # Name OR email. Matching on the name alone was fragile: it compared a
-        # GitHub login against local git config and worked only because the two
-        # had been set equal by hand.
-        if not author_is_agent(author, email):
-            print(f"  human   {short}  {subject}")
-            continue
-
+        # THE TRAILER IS READ FIRST, BEFORE AUTHORSHIP. Order is the whole
+        # point, and getting it backwards made this layer miss the case it
+        # exists for.
+        #
+        # `--no-verify` skips pre-commit and commit-msg. It does NOT skip
+        # prepare-commit-msg, so the FW-Agent trailer is still written on a
+        # bypass. Authorship-first threw that away: a commit that said
+        # `FW-Agent: op-agent` in plain text and wrote OWNERS.yml was filed as
+        # "human" and passed, because the author was the repo's ordinary git
+        # config. That is not the adversarial case, it is the DEFAULT one --
+        # any agent running `git commit --no-verify` produces it.
+        #
+        # A self-declared trailer is a confession. Act on confessions rather
+        # than discarding them because the envelope looked wrong.
         trailer = _git("log", "-1", "--format=%(trailers:key=FW-Agent,valueonly)", sha).strip()
+
         if not trailer:
+            # No confession. Now authorship decides, and only now.
+            if not author_is_agent(author, email):
+                # A human writes no trailer and is unrestricted, by design.
+                print(f"  human   {short}  {subject}")
+                continue
             failures.append(chr(10).join([
                 f"{short} {subject}",
-                "      Authored by the agent account with no FW-Agent trailer, so",
-                "      which agent wrote it cannot be determined and its boundary",
-                "      cannot be checked. Reinstall the hooks:",
+                "      Authored under an agent identity with no FW-Agent trailer,",
+                "      so which agent wrote it cannot be determined and its",
+                "      boundary cannot be checked. Reinstall the hooks:",
                 "        uv run --with pyyaml python tools/op-cli/check_boundaries.py --install",
             ]))
-            print(f"  FAIL    {short}  {subject}  (no FW-Agent trailer)")
+            print(f"  FAIL    {short}  {subject}  (agent identity, no trailer)")
             continue
+
+        # From here the commit has named an agent. Whoever authored it, that
+        # claim is checked -- including when the author is the human, which is
+        # exactly the --no-verify bypass this layer is for.
+        who = "" if author_is_agent(author, email) else f", authored as {author}"
 
         if trailer not in known:
             failures.append(chr(10).join([
@@ -289,7 +312,7 @@ def check_range(rev_range: str) -> int:
         bad = violations_for(trailer, files, cfg)
         if bad:
             lines = [f"{short} {subject}",
-                     f"      {trailer} wrote {len(bad)} file(s) it does not own:"]
+                     f"      {trailer} wrote {len(bad)} file(s) it does not own{who}:"]
             lines += [f"        {f}  — {why}  (via {rule})" for f, why, rule in bad]
             failures.append(chr(10).join(lines))
             print(f"  FAIL    {short}  {subject}  ({trailer}, {len(bad)} violation(s))")
