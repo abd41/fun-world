@@ -73,6 +73,24 @@ def check_regenerates_clean() -> list[str]:
     return ["agent definitions do not match a fresh generation:"] + [f"  {ln}" for ln in lines if ln.strip()]
 
 
+def check_codeowners() -> list[str]:
+    """.github/CODEOWNERS still matches OWNERS.yml.
+
+    CODEOWNERS is the third enforcement layer and it is generated, so the way
+    it fails is by quietly falling behind: a new HUMAN-owned path is added to
+    OWNERS.yml, nobody regenerates, and the path a person was meant to review
+    is reviewed by nobody. Same shape as the agent definitions above.
+    """
+    r = subprocess.run(
+        [sys.executable, str(HERE / "gen_codeowners.py"), "--check"],
+        capture_output=True, text=True, cwd=ROOT,
+    )
+    if r.returncode == 0:
+        return []
+    lines = [ln for ln in (r.stdout + r.stderr).splitlines() if ln.strip() and "unchanged" not in ln]
+    return ["CODEOWNERS does not match OWNERS.yml:"] + [f"  {ln}" for ln in lines]
+
+
 def check_routing() -> list[str]:
     r = subprocess.run([sys.executable, str(HERE / "test_resolve.py")],
                        capture_output=True, text=True, cwd=HERE)
@@ -148,6 +166,7 @@ def main() -> int:
         ("agent definitions state their real paths", lambda: check_agent_content(cfg)),
         ("definitions match a fresh generation", check_regenerates_clean),
         ("routing resolves as intended", check_routing),
+        ("CODEOWNERS matches OWNERS.yml", check_codeowners),
         ("board Agent field matches OWNERS.yml", board_check),
     ]
 
@@ -170,10 +189,13 @@ def main() -> int:
         for f in failures:
             print(f"  {f}", file=sys.stderr)
         print(
-            "\nOWNERS.yml is the source of truth. To resync the definitions:\n"
-            "    pnpm agents:gen\n"
-            "Never fix drift by editing .claude/agents/*.md -- they are generated,\n"
-            "and the next generation would silently undo it.\n",
+            "\nOWNERS.yml is the source of truth. Two different things are\n"
+            "generated from it, and they have SEPARATE generators -- routing a\n"
+            "reader to the wrong one is why this is spelled out:\n\n"
+            "    .claude/agents/*.md   ->  pnpm agents:gen\n"
+            "    .github/CODEOWNERS    ->  pnpm codeowners:gen\n\n"
+            "Fix whichever the failure above names. Never hand-edit either: both\n"
+            "are generated, and the next generation would silently undo it.\n",
             file=sys.stderr,
         )
         return 1

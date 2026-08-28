@@ -30,7 +30,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from owners import HUMAN, ROOT, SHARED, UNOWNED, load, resolve  # noqa: E402
+from owners import HUMAN, ROOT, SHARED, UNOWNED, accounts, load, resolve  # noqa: E402
 
 HOOK = """#!/bin/sh
 # Fun World pre-commit -- generated, do not edit by hand.
@@ -46,38 +46,71 @@ uv run python "$ROOT/tools/op-cli/check_constitution.py" --staged
 """
 
 
-def agent_identity() -> str:
-    """The account agents commit as, from .env.local (GH_AGENT_USER)."""
-    envfile = ROOT / ".env.local"
-    if envfile.exists():
-        for line in envfile.read_text(encoding="utf-8").splitlines():
-            if line.strip().startswith("GH_AGENT_USER="):
-                return line.split("=", 1)[1].strip()
-    return ""
+def agent_identities() -> set[str]:
+    """Every git author identity that means "an agent wrote this".
 
+    WHY A SET AND NOT ONE NAME. `accounts.agent` is a GitHub LOGIN; what a
+    commit carries is `%an`/`%ae`, local git config. Those are different kinds
+    of thing and they matched only because the bot happened to be configured
+    with user.name equal to its login. Nothing enforced that, so renaming the
+    bot would have turned this check off silently -- every agent commit reading
+    as human work, the guard reporting success.
 
-def pending_author_is_agent() -> bool:
-    """Is this commit being authored as the agent account?
+    The identities are now declared in OWNERS.yml (`accounts.agent_git`) and
+    the invariant is enforced at commit time by main(): setting FW_AGENT while
+    authoring under an identity that is not in this set is REFUSED, because
+    such a commit would be invisible to the CI range check.
 
-    Reads the author git will actually record, which is what `-c user.name`
-    sets -- so it reflects the commit about to be made rather than the repo's
-    default config.
+    The login is included too, since that is what GitHub stamps as `%an` on a
+    squash commit.
     """
-    identity = agent_identity()
-    if not identity:
-        return False
+    acc = accounts()
+    ids = {str(v).strip().casefold() for v in acc.get("agent_git", []) if str(v).strip()}
+    if login := str(acc.get("agent", "")).strip():
+        ids.add(login.casefold())
+    if not ids:
+        envfile = ROOT / ".env.local"
+        if envfile.exists():
+            for line in envfile.read_text(encoding="utf-8").splitlines():
+                if line.strip().startswith("GH_AGENT_USER="):
+                    if v := line.split("=", 1)[1].strip():
+                        ids.add(v.casefold())
+    return ids
 
-    # GIT_AUTHOR_IDENT is "Name <email> <timestamp> <tz>". Compare the NAME
-    # exactly -- a substring match over the whole string is wrong here, because
-    # the human's email (abdulrawoofali24@gmail.com) contains the agent's
-    # username (abdulRaw), so every human commit matched. Caught by testing the
-    # human-on-an-agent-branch case, which is exactly the false positive this
-    # check was chosen to avoid.
+
+def author_is_agent(name: str, email: str) -> bool:
+    """Match on NAME or EMAIL, each compared whole.
+
+    Whole-value comparison matters: the human's email
+    (abdulrawoofali24@gmail.com) CONTAINS the agent's username (abdulRaw), so a
+    substring test marks every human commit as agent work. That false positive
+    was found once already by testing the human-on-an-agent-branch case; it is
+    not reintroduced here.
+    """
+    ids = agent_identities()
+    return name.strip().casefold() in ids or email.strip().casefold() in ids
+
+
+def pending_author() -> tuple[str, str]:
+    """The (name, email) git will actually record for the commit being made.
+
+    Reads GIT_AUTHOR_IDENT, so `-c user.name=...` on this specific commit is
+    reflected rather than the repository default.
+    """
     out = subprocess.run(
         ["git", "var", "GIT_AUTHOR_IDENT"], capture_output=True, text=True, cwd=ROOT
     ).stdout.strip()
-    name = out.split("<", 1)[0].strip() if "<" in out else out
-    return name.casefold() == identity.casefold()
+    if "<" not in out:
+        return out.strip(), ""
+    name, _, rest = out.partition("<")
+    email = rest.split(">", 1)[0]
+    return name.strip(), email.strip()
+
+
+def pending_author_is_agent() -> bool:
+    """Is this commit being authored as the agent account?"""
+    name, email = pending_author()
+    return author_is_agent(name, email)
 
 
 def staged_files() -> list[str]:
@@ -86,6 +119,30 @@ def staged_files() -> list[str]:
         capture_output=True, text=True, cwd=ROOT,
     )
     return [ln.strip() for ln in out.stdout.splitlines() if ln.strip()]
+
+
+TRAILER_HOOK = """#!/bin/sh
+# Fun World prepare-commit-msg -- generated, do not edit by hand.
+#
+# Records WHICH agent is committing, as a trailer, so a boundary claim can be
+# checked after the fact instead of argued about.
+#
+# FW_AGENT is the identity the boundary guard validates, and it used to live
+# only in this shell's environment -- gone the instant the commit finished. On
+# PR #15 that produced a dispute nobody could settle: a reviewer inferred an
+# agent from git authorship, the author answered that the hook had passed, and
+# neither could be checked. Every agent shares one GitHub account, so
+# authorship separates agent from human and nothing finer.
+#
+# $2 is the commit source. Skip merges and squashes: their message is assembled
+# from commits that already carry their own trailer, and appending another
+# would attribute someone else's work to whoever ran the merge.
+[ -n "$FW_AGENT" ] || exit 0
+case "$2" in
+  merge|squash) exit 0 ;;
+esac
+git interpret-trailers --in-place --if-exists replace --trailer "FW-Agent: $FW_AGENT" "$1"
+"""
 
 
 PUSH_HOOK = """#!/bin/sh
@@ -102,13 +159,180 @@ def install() -> int:
     if not hooks.is_absolute():
         hooks = ROOT / hooks
     hooks.mkdir(parents=True, exist_ok=True)
-    for name, body in (("pre-commit", HOOK), ("pre-push", PUSH_HOOK)):
+    for name, body in (("pre-commit", HOOK), ("prepare-commit-msg", TRAILER_HOOK),
+                       ("pre-push", PUSH_HOOK)):
         path = hooks / name
         path.write_text(body, encoding="utf-8")
         path.chmod(0o755)
         print(f"installed {path}")
     print("commit: agents must set FW_AGENT; human commits are unrestricted")
+    print("msg:    FW_AGENT is recorded as an FW-Agent trailer, so CI can check it")
     print("push:   direct pushes to main are refused -- use a PR")
+    return 0
+
+
+class GitFailed(RuntimeError):
+    """A git command this check depends on did not succeed."""
+
+
+def _git(*args: str) -> str:
+    """Run git, and REFUSE to treat a failure as an empty answer.
+
+    This used to discard the return code and stderr, which made a `rev-list`
+    that failed indistinguishable from a range containing no commits -- so a
+    bad or unreachable BASE (a force-push, a shallow clone, a deleted ref)
+    produced "no commits in <range>" and exit 0. A guard that reports success
+    because its input was broken is the failure this whole job exists to catch.
+    """
+    r = subprocess.run(["git", *args], capture_output=True, text=True, cwd=ROOT)
+    if r.returncode != 0:
+        raise GitFailed("git " + " ".join(args) + " failed: " + r.stderr.strip())
+    return r.stdout.strip()
+
+
+def violations_for(agent: str, files: list[str], cfg: dict) -> list[tuple[str, str, str]]:
+    """Every file in `files` that `agent` is not allowed to write."""
+    out = []
+    for f in files:
+        r = resolve(f, cfg)
+        if r.owner in (agent, SHARED):
+            continue
+        if r.owner == HUMAN:
+            reason = "human-owned — an agent may never write this"
+        elif r.owner == UNOWNED:
+            reason = "no OWNERS.yml rule covers it — add one, or this path has no owner"
+        elif r.owner.startswith("AMBIGUOUS"):
+            reason = f"two owners claim it ({r.owner.split(':', 1)[1]}) — add a precedence rule"
+        else:
+            reason = f"owned by {r.owner}"
+        out.append((f, reason, r.rule))
+    return out
+
+
+def check_range(rev_range: str) -> int:
+    """Enforcement layer 3: re-check every commit in a PR, where --no-verify cannot reach.
+
+    Layers 1 and 2 -- the agent's own definition, and the pre-commit hook --
+    are both local, and both are one `--no-verify` away from not existing.
+    This is the layer that survives that, which ADR-0007 has claimed all along
+    and nothing implemented.
+
+    Identity comes from the FW-Agent trailer, and the trailer is read FIRST --
+    authorship is only consulted when there is no trailer. That order is the
+    correction to this function's first version, which gated the trailer behind
+    authorship and so discarded the exact evidence it claimed to rely on:
+    `--no-verify` does not skip prepare-commit-msg, so a bypassing commit still
+    SAYS `FW-Agent: <name>`, and it was being filed as human work anyway.
+
+    A commit with no trailer, authored under a declared agent identity, is a
+    failure rather than a pass -- otherwise stripping the trailer would be a way
+    to opt out, which is the same hole as a guard that skips when misconfigured.
+    A commit with no trailer authored by a human is unrestricted, by design.
+    """
+    cfg = load()
+    if not agent_identities():
+        # Refuse rather than pass. With no identity every commit looks human
+        # and this job would report success having checked nothing -- the exact
+        # failure it exists to catch.
+        print("REFUSING to run: no agent identity is configured.", file=sys.stderr)
+        print("  Set `accounts.agent` and `accounts.agent_git` in OWNERS.yml.", file=sys.stderr)
+        return 1
+
+    try:
+        shas = [ln for ln in _git("rev-list", "--no-merges", rev_range).splitlines() if ln]
+    except GitFailed as why:
+        # Fail, do not skip. "I could not read the range" is not "the range is
+        # clean", and only one of those two should let a merge proceed.
+        print(f"REFUSING to run: {why}", file=sys.stderr)
+        print(f"  The range {rev_range!r} could not be read, so nothing was checked.",
+              file=sys.stderr)
+        print("  In CI this usually means a shallow clone — set fetch-depth: 0.",
+              file=sys.stderr)
+        return 1
+
+    if not shas:
+        print(f"boundary guard: no commits in {rev_range}")
+        return 0
+
+    known = set(cfg["owners"])
+    failures: list[str] = []
+    for sha in shas:
+        author = _git("log", "-1", "--format=%an", sha)
+        email = _git("log", "-1", "--format=%ae", sha)
+        subject = _git("log", "-1", "--format=%s", sha)
+        short = sha[:9]
+
+        # THE TRAILER IS READ FIRST, BEFORE AUTHORSHIP. Order is the whole
+        # point, and getting it backwards made this layer miss the case it
+        # exists for.
+        #
+        # `--no-verify` skips pre-commit and commit-msg. It does NOT skip
+        # prepare-commit-msg, so the FW-Agent trailer is still written on a
+        # bypass. Authorship-first threw that away: a commit that said
+        # `FW-Agent: op-agent` in plain text and wrote OWNERS.yml was filed as
+        # "human" and passed, because the author was the repo's ordinary git
+        # config. That is not the adversarial case, it is the DEFAULT one --
+        # any agent running `git commit --no-verify` produces it.
+        #
+        # A self-declared trailer is a confession. Act on confessions rather
+        # than discarding them because the envelope looked wrong.
+        trailer = _git("log", "-1", "--format=%(trailers:key=FW-Agent,valueonly)", sha).strip()
+
+        if not trailer:
+            # No confession. Now authorship decides, and only now.
+            if not author_is_agent(author, email):
+                # A human writes no trailer and is unrestricted, by design.
+                print(f"  human   {short}  {subject}")
+                continue
+            failures.append(chr(10).join([
+                f"{short} {subject}",
+                "      Authored under an agent identity with no FW-Agent trailer,",
+                "      so which agent wrote it cannot be determined and its",
+                "      boundary cannot be checked. Reinstall the hooks:",
+                "        uv run --with pyyaml python tools/op-cli/check_boundaries.py --install",
+            ]))
+            print(f"  FAIL    {short}  {subject}  (agent identity, no trailer)")
+            continue
+
+        # From here the commit has named an agent. Whoever authored it, that
+        # claim is checked -- including when the author is the human, which is
+        # exactly the --no-verify bypass this layer is for.
+        who = "" if author_is_agent(author, email) else f", authored as {author}"
+
+        if trailer not in known:
+            failures.append(chr(10).join([
+                f"{short} {subject}",
+                f"      FW-Agent: {trailer!r} is not an agent in OWNERS.yml",
+            ]))
+            print(f"  FAIL    {short}  {subject}  (unknown agent {trailer!r})")
+            continue
+
+        files = [ln for ln in _git("show", "--pretty=format:", "--name-only",
+                                   "--diff-filter=ACMRT", sha).splitlines() if ln.strip()]
+        bad = violations_for(trailer, files, cfg)
+        if bad:
+            lines = [f"{short} {subject}",
+                     f"      {trailer} wrote {len(bad)} file(s) it does not own{who}:"]
+            lines += [f"        {f}  — {why}  (via {rule})" for f, why, rule in bad]
+            failures.append(chr(10).join(lines))
+            print(f"  FAIL    {short}  {subject}  ({trailer}, {len(bad)} violation(s))")
+        else:
+            print(f"  ok      {short}  {subject}  ({trailer}, {len(files)} file(s))")
+
+    if failures:
+        print(file=sys.stderr)
+        print(f"BOUNDARY VIOLATION in {len(failures)} commit(s):", file=sys.stderr)
+        print(file=sys.stderr)
+        for f in failures:
+            print(f"  {f}", file=sys.stderr)
+            print(file=sys.stderr)
+        print("Do not widen OWNERS.yml to fix this — it is human-owned.", file=sys.stderr)
+        print("Split the work package so each child routes to its real owner:", file=sys.stderr)
+        print("    op-cli split --wp <id> --by-paths", file=sys.stderr)
+        return 1
+
+    print()
+    print(f"boundary guard: {len(shas)} commit(s) checked, all inside their agent's boundary")
     return 0
 
 
@@ -116,11 +340,42 @@ def main() -> int:
     if "--install" in sys.argv:
         return install()
 
+    for i, arg in enumerate(sys.argv):
+        if arg == "--range":
+            return check_range(sys.argv[i + 1])
+
     agent = os.environ.get("FW_AGENT", "").strip()
     files = staged_files()
 
     if not files:
         return 0
+
+    if agent and not pending_author_is_agent():
+        # THE INVARIANT THE CI CHECK DEPENDS ON, enforced here rather than hoped
+        # for. Layer 3 decides "is this agent work?" from the commit's author.
+        # A commit that declares FW_AGENT but is authored under an undeclared
+        # identity would sail past it as human work -- the guard reporting
+        # success having checked nothing, which is the whole failure class this
+        # repo keeps rediscovering.
+        #
+        # Refusing here means the coincidence that made it work (the bot's
+        # user.name happening to equal its GitHub login) is now a rule.
+        name, email = pending_author()
+        E = sys.stderr
+        print(file=E)
+        print(f"REFUSED: FW_AGENT={agent} but the author is not a declared agent identity.", file=E)
+        print(file=E)
+        print(f"  author:   {name} <{email}>", file=E)
+        print(f"  declared: {', '.join(sorted(agent_identities()))}", file=E)
+        print(file=E)
+        print("  A commit authored this way is invisible to the CI boundary check:", file=E)
+        print("  it would be read as human work and never checked at all.", file=E)
+        print(file=E)
+        print("  Either commit under the agent identity:", file=E)
+        print("      git -c user.name=<name> -c user.email=<email> commit ...", file=E)
+        print("  or add this identity to `accounts.agent_git` in OWNERS.yml.", file=E)
+        print(file=E)
+        return 1
 
     if not agent:
         # An agent that forgets FW_AGENT would get an unrestricted human
@@ -135,7 +390,7 @@ def main() -> int:
         if pending_author_is_agent():
             print(
                 f"\nREFUSED: committing as the agent account with no FW_AGENT set.\n\n"
-                f"  Author is '{agent_identity()}', so this is agent work — but the\n"
+                f"  Author is '{pending_author()[0]}', so this is agent work — but the\n"
                 "  boundary guard was about to wave it through as a human commit,\n"
                 "  which would let it write anywhere.\n\n"
                 "  Set the agent explicitly:\n"

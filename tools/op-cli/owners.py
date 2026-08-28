@@ -130,3 +130,13 @@ def limits(cfg: dict | None = None) -> dict:
 
 def board(cfg: dict | None = None) -> dict:
     return (cfg or load()).get("board", {})
+
+
+def accounts(cfg: dict | None = None) -> dict:
+    """The GitHub logins for the agent account and the reviewing human.
+
+    Read from OWNERS.yml rather than .env.local so it is available in CI. The
+    guard that needs it must fail loudly when it is missing, never quietly
+    decide that no agent is acting -- see check_boundaries.py.
+    """
+    return (cfg or load()).get("accounts", {})

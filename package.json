@@ -10,7 +10,9 @@
     "test": "turbo run test",
     "agents:gen": "uv run --with pyyaml python tools/op-cli/gen_agents.py",
     "agents:check": "uv run --with pyyaml python tools/op-cli/gen_agents.py --check",
-    "owners:test": "uv run --with pyyaml python tools/op-cli/test_resolve.py"
+    "owners:test": "uv run --with pyyaml python tools/op-cli/test_resolve.py",
+    "codeowners:gen": "uv run --with pyyaml python tools/op-cli/gen_codeowners.py",
+    "codeowners:check": "uv run --with pyyaml python tools/op-cli/gen_codeowners.py --check"
   },
   "devDependencies": { "turbo": "^2" }
 }

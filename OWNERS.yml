@@ -19,6 +19,49 @@
 
 version: 1
 
+# The GitHub identities behind the work, so a machine can tell them apart.
+#
+# WHY THIS IS HERE and not only in .env.local: the boundary guard has to know
+# which account is the agent. It used to read that from .env.local alone --
+# a gitignored file, which does not exist in CI. The guard would have found no
+# identity, concluded "not an agent", and waved every commit through as human
+# work. That is the third time this repo has built a check that reports success
+# while enforcing nothing (§26), so the name lives here, in the file that is
+# already the source of truth for who may write what.
+#
+# A username is not a secret. The TOKEN stays in .env.local and is never
+# committed. Do not put a token here.
+accounts:
+  # Every agent commits as this one account, so authorship distinguishes agent
+  # work from human work and NOTHING FINER. Which agent acted is carried by the
+  # FW-Agent commit trailer -- see tools/op-cli/check_boundaries.py.
+  agent: abdulRaw
+  # Reviews anything an agent may not write. This is the account CODEOWNERS
+  # points at, which is what makes a human-owned path reviewable rather than
+  # merely forbidden.
+  human: abd41
+
+  # The git author identities an agent commit is actually made under.
+  #
+  # WHY THIS IS SPELLED OUT. `agent: abdulRaw` above is a GitHub LOGIN. What CI
+  # reads off a commit is `%an` / `%ae` -- local git config. Those are different
+  # kinds of thing, and they matched only because whoever set the bot up happened
+  # to set user.name to the login. Nothing guaranteed it. Configure the agent as
+  # "Fun World Bot" and every agent commit silently reads as human work, which
+  # turns the boundary check off without any signal -- the failure mode this repo
+  # has now hit four times.
+  #
+  # Declared here, and ENFORCED at commit time: check_boundaries.py refuses a
+  # commit that sets FW_AGENT while authoring under an identity not in this list,
+  # because that commit would be invisible to the CI check. The coincidence is
+  # now an invariant.
+  #
+  # Names and emails are both accepted; a match on either is enough.
+  agent_git:
+    - abdulRaw                                   # local git config user.name
+    - abdulrawoofali24+bot@gmail.com             # local git config user.email
+    - 97601992+abdulRaw@users.noreply.github.com # what GitHub stamps on a squash
+
 # Hard limits enforced by op-cli, not by agent goodwill.
 limits:
   max_children_per_split: 5   # fan-out cap

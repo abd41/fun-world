@@ -25,14 +25,14 @@ info() { printf '         %s\n' "$1"; }
 die()  { printf '\n\033[31mFAILED\033[0m %s\n\n' "$1" >&2; exit 1; }
 
 # ---------------------------------------------------------------------------
-say "1/8  toolchain"
+say "1/9  toolchain"
 uv run python tools/op-cli/check_toolchain.py --phase 1 >/dev/null 2>&1 \
   || { uv run python tools/op-cli/check_toolchain.py --phase 1 || true
        die "install the tools listed above, then re-run ./scripts/setup"; }
 ok "phase 1 tools present"
 
 # ---------------------------------------------------------------------------
-say "2/8  FW_HOST"
+say "2/9  FW_HOST"
 
 # Resolution order, first match wins. Detection is LAST and is only a
 # convenience -- a value you set is never overwritten, which is what makes
@@ -75,7 +75,7 @@ ok "FW_HOST = $FW_HOST   ($FW_HOST_SOURCE)"
   info "pin it in .env to survive DHCP changes — see .env.example"
 
 # ---------------------------------------------------------------------------
-say "3/8  .env"
+say "3/9  .env"
 if [[ ! -f "$ENV_FILE" ]]; then
   SECRET="$(uv run python -c 'import secrets;print(secrets.token_urlsafe(50))')"
   cat > "$ENV_FILE" <<ENVEOF
@@ -94,7 +94,7 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-say "4/8  containers"
+say "4/9  containers"
 # --wait blocks until healthchecks pass. Without it, migrations race a database
 # that is still starting, which is the flakiest failure this script could have.
 docker compose -f infra/docker-compose.yml up -d --wait >/dev/null 2>&1 \
@@ -102,14 +102,14 @@ docker compose -f infra/docker-compose.yml up -d --wait >/dev/null 2>&1 \
 ok "postgres :5433, media :8090"
 
 # ---------------------------------------------------------------------------
-say "5/8  python + migrations"
+say "5/9  python + migrations"
 (cd apps/api && uv sync --quiet) || die "uv sync failed"
 (cd apps/api && uv run python manage.py migrate --no-input >/dev/null) \
   || die "migrations failed — is postgres healthy?"
 ok "schema up to date"
 
 # ---------------------------------------------------------------------------
-say "6/8  seed"
+say "6/9  seed"
 # T007 landed, so a missing seed command is a broken checkout, not an unbuilt
 # feature. The skip branch that used to be here was right while the command did
 # not exist, and became a lie the moment it did: it would report a clean setup
@@ -123,7 +123,7 @@ fi
 ok "catalog seeded"
 
 # ---------------------------------------------------------------------------
-say "7/8  javascript"
+say "7/9  javascript"
 # check_toolchain already refuses to continue without pnpm, so the skip branch
 # was unreachable. Worse, `pnpm install && ok` swallowed a FAILED install in
 # silence: it printed nothing, then went on to generate contracts against
@@ -135,7 +135,7 @@ fi
 ok "workspace installed"
 
 # ---------------------------------------------------------------------------
-say "8/8  contracts"
+say "8/9  contracts"
 # T011 landed, so both branches here were wrong and are replaced rather than
 # left. The else branch is dead, and "is the API running?" was never the cause:
 # generation reads the routers through Django app registry and needs no server
@@ -154,6 +154,26 @@ if ! pnpm --dir packages/contracts run generate >/dev/null 2>&1; then
 fi
 [[ -s packages/contracts/src/index.ts ]]   || die "generation reported success but produced no client. This should be impossible; please report it."
 ok "regenerated from openapi.json"
+
+# ---------------------------------------------------------------------------
+say "9/9  git hooks"
+
+# Layer 2 (the boundary guard) and the FW-Agent trailer that layer 3 reads both
+# live in git hooks, and hooks are NOT cloned -- they exist only where somebody
+# installed them. Until this step existed, setup finished without them, so a
+# fresh clone had no boundary enforcement at all and no trailer on any commit,
+# which meant the CI check had nothing to read. Found by review.
+#
+# Not a silent skip: if this cannot install, setup fails.
+if ! uv run --with pyyaml python tools/op-cli/check_boundaries.py --install >/dev/null 2>&1; then
+  die "could not install git hooks. Run it directly to see why:
+        uv run --with pyyaml python tools/op-cli/check_boundaries.py --install"
+fi
+HOOKS="$(git rev-parse --git-path hooks)"
+for h in pre-commit prepare-commit-msg pre-push; do
+  [[ -x "${HOOKS}/${h}" ]] || die "hook ${h} was reported installed but is not executable at ${HOOKS}/${h}"
+done
+ok "pre-commit, prepare-commit-msg, pre-push installed"
 
 # ---------------------------------------------------------------------------
 ELAPSED=$((SECONDS - START))

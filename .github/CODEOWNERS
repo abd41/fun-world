@@ -1,0 +1,57 @@
+# CODEOWNERS -- GENERATED from OWNERS.yml. Do not edit by hand.
+#   regenerate:  uv run --with pyyaml python tools/op-cli/gen_codeowners.py
+#   verified by: check_drift.py, which fails if this drifts
+#
+# Ownership is enforced in layers (ADR-0007). Layers 1 and 2 -- the agent's
+# own definition and the pre-commit hook -- are local, and both are one
+# `--no-verify` away from not existing.
+#
+# WHAT THIS FILE DOES: requests a human reviewer on the pull request.
+# WHAT IT DOES NOT DO: block the merge -- yet. Ruleset 21628724 is active on
+# the default branch (1 approval, thread resolution, squash-only), but it
+# sets `require_code_owner_review: false`. Flipping that one flag is what
+# makes this file blocking. The repository is public and server-side rules
+# are available; the gap is a setting, not the platform.
+#
+# The `Agent boundaries (layer 3)` job in guards.yml re-checks every commit
+# against OWNERS.yml. NOTE: it is not yet in the ruleset's required status
+# checks (those are: OWNERS.yml drift, Path routing, Onion layers), so it
+# reports but does not yet block either.
+#
+# ORDER: CODEOWNERS is LAST match wins -- the exact opposite of OWNERS.yml,
+# which is FIRST match wins. Precedence is therefore emitted in REVERSE,
+# and the catch-all comes first. Do not sort this file.
+
+# A human is asked to review every pull request. Caveat, because the file
+# should not overstate itself: GitHub never requests review from the PR's
+# own author, so a pull request opened by @abd41 gets no reviewer from this
+# line. It covers agent-opened pull requests, which is the case that matters.
+*   @abd41
+
+# Paths NO AGENT MAY EVER WRITE. A spec is what a human approves, and an
+# agent that could edit OWNERS.yml could widen its own boundary from inside.
+/OWNERS.yml                 @abd41
+/.specify/                  @abd41
+/.claude/                   @abd41
+/specs/                     @abd41
+/docs/adr/                  @abd41
+/docs/ARCHITECTURE.md       @abd41
+/.env                       @abd41
+/.env.*                     @abd41
+/.gitignore                 @abd41
+/package.json               @abd41
+/pnpm-workspace.yaml        @abd41
+/turbo.json                 @abd41
+/.importlinter              @abd41
+/apps/api/pyproject.toml    @abd41
+/apps/api/manage.py         @abd41
+/apps/api/config/           @abd41
+/scripts/                   @abd41
+/infra/                     @abd41
+
+# Carve-outs: these sit INSIDE a human-owned tree above, but OWNERS.yml
+# lists them earlier, and first-match-wins means the agent owns them.
+# They are not human-only, so they do not belong in the block above.
+# The reviewer stays @abd41 because there is only one human here; the
+# owner named on each line is the agent that may WRITE it.
+/infra/keycloak/realm/      @abd41   # written by auth-agent, inside infra/**

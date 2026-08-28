@@ -45,13 +45,49 @@ pnpm agents:gen      # regenerate .claude/agents/*.md from OWNERS.yml
 pnpm agents:check    # fail if they have drifted
 ```
 
-A pre-commit hook enforces boundaries. Agents commit with `FW_AGENT` set;
-human commits are unrestricted.
+Boundaries are enforced in layers (ADR-0007). Agents commit with `FW_AGENT`
+set; human commits are unrestricted.
 
 ```bash
 FW_AGENT=web-agent git commit -m "..."   # checked against OWNERS.yml
 git commit -m "..."                       # human, unrestricted
 ```
+
+| layer | where | catches | blocking? |
+|---|---|---|---|
+| 1 | the agent's own definition | honest mistakes | no |
+| 2 | pre-commit hook | everything else on this machine | yes, locally |
+| 3 | `.github/CODEOWNERS` | puts a human on human-owned paths | **not yet** — see below |
+| 3 | `Agent boundaries` job in CI | a layer-2 bypass: `--no-verify`, or a clone without hooks | **not yet** — see below |
+
+`FW_AGENT` is recorded as an `FW-Agent:` commit trailer by a
+`prepare-commit-msg` hook, which is what lets the CI job check a commit after
+the fact. Without it the acting agent is unrecoverable: every agent commits as
+the same GitHub account, so authorship separates agent from human and nothing
+finer. `./scripts/setup` installs the hooks; to do it by hand:
+
+```bash
+uv run --with pyyaml python tools/op-cli/check_boundaries.py --install
+```
+
+**What is and is not blocking today.** Ruleset 21628724 is active on `main`
+with one required approval, required thread resolution, dismiss-stale-on-push
+and squash-only merges. Two gaps remain, both repository settings rather than
+files, so neither can be closed from this repo:
+
+- `require_code_owner_review` is `false`, so CODEOWNERS *requests* a reviewer
+  and does not compel one.
+- The required status checks are `OWNERS.yml drift`, `Path routing` and
+  `Onion layers`. `Agent boundaries (layer 3)` is **not** among them, so a red
+  boundaries run still merges.
+
+Until both are set, layer 3 is evidence rather than a gate. That is stated
+here rather than glossed, because a check believed to block and silently not
+blocking is worse than one nobody trusts.
+
+The CI job runs on pull requests only. On `push: main` a squash commit is
+authored by whoever opened the pull request and flattens a whole branch into
+one message, so the question it asks cannot be answered honestly there.
 
 ## Local stack
 

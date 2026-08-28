@@ -28,6 +28,67 @@ jobs:
       - run: uv run --with pyyaml python test_resolve.py
         working-directory: tools/op-cli
 
+  boundaries:
+    name: Agent boundaries (layer 3)
+    runs-on: ubuntu-latest
+    # PULL REQUESTS ONLY, and this is NOT the "skip when inconvenient" pattern
+    # that made the layering job inert -- the distinction is worth being exact
+    # about, because the two look identical from a distance.
+    #
+    # That job skipped when its own config was missing, so a misconfiguration
+    # read as success. This one skips an event where the question is genuinely
+    # unanswerable: GitHub authors a squash commit as the PR OPENER, and squash
+    # flattens a branch into one message whose trailers git parses only from the
+    # last paragraph. On `push: main` every commit therefore looks like it was
+    # written by whoever clicked the button, and a multi-agent branch would
+    # attribute every file to one agent. Running here would not be stricter, it
+    # would be wrong -- and it would fail main for every agent-opened PR.
+    #
+    # The pull request is where the individual commits still exist, which is the
+    # only place this can be answered honestly.
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The range check walks every commit in the PR, so a shallow clone
+          # would silently check a subset. 0 = full history.
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v5
+      - name: CODEOWNERS still matches OWNERS.yml
+        run: uv run --with pyyaml python tools/op-cli/gen_codeowners.py --check
+      - name: No commit wrote outside its agent boundary (ADR-0007, constitution 8)
+        # This is the layer that survives --no-verify. The pre-commit hook is a
+        # convenience on one laptop; ADR-0007 has claimed a third layer since it
+        # was accepted and nothing implemented it, so PR #13 wrote to a
+        # HUMAN-owned path with nothing to flag it.
+        #
+        # NOT YET BLOCKING. Ruleset 21628724 requires exactly three status
+        # checks -- "OWNERS.yml drift", "Path routing", "Onion layers". This job
+        # is not among them, so today it reports and a red run still merges.
+        # Adding `Agent boundaries (layer 3)` to that ruleset is a repository
+        # setting, not a file, so it cannot be done from here. Until someone
+        # does it, this is evidence rather than a gate -- said plainly, because
+        # a check that is believed to block and does not is worse than one
+        # nobody trusts.
+        #
+        # Identity comes from the FW-Agent trailer, not from authorship: every
+        # agent commits as one account, so authorship separates agent from human
+        # and nothing finer. An agent commit with no trailer FAILS here rather
+        # than passing -- otherwise dropping the trailer opts you out of the
+        # check, which is the same hole as a guard that skips when misconfigured.
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          # A push to an unborn or force-updated ref gives an all-zero BASE.
+          # Falling back to HEAD~1 keeps the job honest instead of having it
+          # quietly check an empty range and report success.
+          if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ]; then
+            BASE="$(git rev-parse "$HEAD~1" 2>/dev/null || echo "$HEAD")"
+          fi
+          echo "range: $BASE..$HEAD"
+          uv run --with pyyaml python tools/op-cli/check_boundaries.py --range "$BASE..$HEAD"
+
   layering:
     name: Onion layers
     runs-on: ubuntu-latest
