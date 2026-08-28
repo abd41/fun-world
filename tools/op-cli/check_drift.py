@@ -189,10 +189,13 @@ def main() -> int:
         for f in failures:
             print(f"  {f}", file=sys.stderr)
         print(
-            "\nOWNERS.yml is the source of truth. To resync the definitions:\n"
-            "    pnpm agents:gen\n"
-            "Never fix drift by editing .claude/agents/*.md -- they are generated,\n"
-            "and the next generation would silently undo it.\n",
+            "\nOWNERS.yml is the source of truth. Two different things are\n"
+            "generated from it, and they have SEPARATE generators -- routing a\n"
+            "reader to the wrong one is why this is spelled out:\n\n"
+            "    .claude/agents/*.md   ->  pnpm agents:gen\n"
+            "    .github/CODEOWNERS    ->  pnpm codeowners:gen\n\n"
+            "Fix whichever the failure above names. Never hand-edit either: both\n"
+            "are generated, and the next generation would silently undo it.\n",
             file=sys.stderr,
         )
         return 1

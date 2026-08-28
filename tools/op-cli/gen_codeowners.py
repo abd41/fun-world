@@ -6,22 +6,31 @@ from the first within a few weeks, and then two files disagree about who owns
 what -- which is the failure `check_drift.py` already exists to catch. So this
 derives from the same source and `check_drift.py` verifies it still matches.
 
-BE HONEST ABOUT WHAT THIS FILE BUYS. On a private repo on the free tier there
-is no branch protection and no required review (the same limitation
-`check_push.py` documents), so a CODEOWNERS entry requests a reviewer -- it
-does not compel one. That makes it useful and insufficient at the same time.
+WHAT THIS FILE IS WORTH, ACCURATELY. An earlier version of this docstring said
+the repository was private and had no branch protection, and cited
+`check_push.py` for it. Both halves were wrong. The repository is PUBLIC, and
+ruleset 21628724 is `active` on the default branch with one required approval,
+required review-thread resolution, dismiss-stale-on-push and squash-only
+merges. `check_push.py:15-16` actually says the opposite of what it was cited
+for -- "if the repository ever goes public, real server-side rules become
+available for free and should replace this" -- which has now happened.
 
-The enforcing half of layer 3 is the `boundaries` job in guards.yml, which
-re-checks every commit in the PR against OWNERS.yml where `--no-verify`
-cannot reach. This file is the part that puts a human's name in front of a
-change; that job is the part that fails the build.
+What is true is narrower and worth stating exactly: the ruleset has
+`require_code_owner_review: false`. So a CODEOWNERS entry requests a reviewer
+and does not compel one, and flipping that single flag is what would make this
+file blocking. The platform is not the obstacle; a setting is.
 
-Only HUMAN-owned paths get an entry. Agents have no GitHub identity of their
-own -- they share one account -- so there is nobody to assign an agent-owned
-path to, and inventing a mapping would state something untrue.
+ORDERING. OWNERS.yml is FIRST match wins; CODEOWNERS is LAST match wins. The
+two are exact opposites, so precedence rules are emitted in REVERSE order and
+the catch-all goes first. Getting this wrong is not cosmetic: an earlier
+version collected HUMAN paths into an unordered set and dropped the carve-outs
+that precede them, which made the generated file assert that
+`infra/keycloak/realm/**` was human-only when OWNERS.yml routes it to
+auth-agent.
 
-Run:    python tools/op-cli/gen_codeowners.py
-Check:  python tools/op-cli/gen_codeowners.py --check
+Run:    python tools/op-cli/gen_codeowners.py       (needs pyyaml)
+        uv run --with pyyaml python tools/op-cli/gen_codeowners.py
+Check:  ... gen_codeowners.py --check
 """
 from __future__ import annotations
 
@@ -55,12 +64,43 @@ def to_codeowners_pattern(glob: str) -> str:
     return "/" + p.lstrip("/")
 
 
-def human_paths(cfg: dict) -> list[str]:
-    out: list[str] = []
-    for rule in cfg.get("precedence", []):
-        if rule.get("owner") == HUMAN:
-            out.extend(rule.get("paths", []))
-    return out
+def _covers(broad: str, narrow: str) -> bool:
+    """Does OWNERS.yml glob `broad` contain `narrow`?"""
+    if not broad.endswith("/**"):
+        return False
+    return narrow.startswith(broad[: -len("**")])
+
+
+def classify(cfg: dict) -> tuple[list[str], list[tuple[str, str, str]]]:
+    """Split precedence into human-only paths and agent carve-outs inside them.
+
+    Walks `precedence` IN ORDER, which is the whole point. A non-HUMAN rule
+    that appears BEFORE a HUMAN rule covering the same tree is a carve-out:
+    first-match-wins means the agent owns it, and the human lock below does not
+    apply. OWNERS.yml says so out loud at the auth-agent entry -- "Must precede
+    the infra/** lock below".
+
+    Returns (human_paths, carve_outs) where a carve-out is
+    (path, real_owner, the_human_path_it_sits_inside).
+    """
+    rules = cfg.get("precedence", [])
+    human_paths: list[str] = []
+    carve_outs: list[tuple[str, str, str]] = []
+
+    for i, rule in enumerate(rules):
+        if rule.get("owner") != HUMAN:
+            continue
+        for hp in rule.get("paths", []):
+            human_paths.append(hp)
+            # Only rules EARLIER in the list can override this one.
+            for earlier in rules[:i]:
+                owner = earlier.get("owner")
+                if owner == HUMAN:
+                    continue
+                for ap in earlier.get("paths", []):
+                    if _covers(hp, ap):
+                        carve_outs.append((ap, owner, hp))
+    return human_paths, carve_outs
 
 
 def render(cfg: dict) -> str:
@@ -69,42 +109,69 @@ def render(cfg: dict) -> str:
         raise SystemExit("OWNERS.yml has no accounts.human — cannot generate CODEOWNERS")
     at = "@" + human.lstrip("@")
 
+    human_paths, carve_outs = classify(cfg)
+    carved = {ap for ap, _, _ in carve_outs}
+
     lines = [
         "# CODEOWNERS -- GENERATED from OWNERS.yml. Do not edit by hand.",
-        "#   regenerate:  python tools/op-cli/gen_codeowners.py",
+        "#   regenerate:  uv run --with pyyaml python tools/op-cli/gen_codeowners.py",
         "#   verified by: check_drift.py, which fails if this drifts",
         "#",
-        "# Enforcement layer 3 of 3 (ADR-0007). Layers 1 and 2 -- the agent's own",
-        "# definition and the pre-commit hook -- are both local and both one",
+        "# Ownership is enforced in layers (ADR-0007). Layers 1 and 2 -- the agent's",
+        "# own definition and the pre-commit hook -- are local, and both are one",
         "# `--no-verify` away from not existing.",
         "#",
-        "# What this file does: puts a human reviewer on the PR.",
-        "# What it does NOT do: block the merge. There is no branch protection on a",
-        "# private repo on the free tier, so a review request here is advisory.",
-        "# The half that fails the build is the `boundaries` job in guards.yml.",
+        "# WHAT THIS FILE DOES: requests a human reviewer on the pull request.",
+        "# WHAT IT DOES NOT DO: block the merge -- yet. Ruleset 21628724 is active on",
+        "# the default branch (1 approval, thread resolution, squash-only), but it",
+        "# sets `require_code_owner_review: false`. Flipping that one flag is what",
+        "# makes this file blocking. The repository is public and server-side rules",
+        "# are available; the gap is a setting, not the platform.",
         "#",
-        "# NOTE ON ORDER: CODEOWNERS is LAST match wins -- the opposite of",
-        "# OWNERS.yml, which is first match wins. The catch-all is therefore first",
-        "# and the specific paths follow it, which is the reverse of how OWNERS.yml",
-        "# reads. Do not sort this file.",
+        "# The `Agent boundaries (layer 3)` job in guards.yml re-checks every commit",
+        "# against OWNERS.yml. NOTE: it is not yet in the ruleset's required status",
+        "# checks (those are: OWNERS.yml drift, Path routing, Onion layers), so it",
+        "# reports but does not yet block either.",
+        "#",
+        "# ORDER: CODEOWNERS is LAST match wins -- the exact opposite of OWNERS.yml,",
+        "# which is FIRST match wins. Precedence is therefore emitted in REVERSE,",
+        "# and the catch-all comes first. Do not sort this file.",
         "",
-        "# Every pull request gets a human reviewer. The PR template already",
-        "# requires \"a human approved\"; this is that requirement, mechanised as far",
-        "# as the platform allows.",
+        "# A human is asked to review every pull request. Caveat, because the file",
+        "# should not overstate itself: GitHub never requests review from the PR's",
+        f"# own author, so a pull request opened by {at} gets no reviewer from this",
+        "# line. It covers agent-opened pull requests, which is the case that matters.",
         f"*   {at}",
         "",
-        "# Paths NO AGENT MAY EVER WRITE. These are the ones worth a person's eyes:",
-        "# a spec is what a human approves, and an agent that could edit OWNERS.yml",
-        "# could widen its own boundary from the inside.",
+        "# Paths NO AGENT MAY EVER WRITE. A spec is what a human approves, and an",
+        "# agent that could edit OWNERS.yml could widen its own boundary from inside.",
     ]
 
     seen: set[str] = set()
-    for glob in human_paths(cfg):
+    for glob in human_paths:
+        if glob in carved:
+            continue
         pat = to_codeowners_pattern(glob)
         if pat in seen:
             continue
         seen.add(pat)
         lines.append(f"{pat:<28}{at}")
+
+    if carve_outs:
+        lines += [
+            "",
+            "# Carve-outs: these sit INSIDE a human-owned tree above, but OWNERS.yml",
+            "# lists them earlier, and first-match-wins means the agent owns them.",
+            "# They are not human-only, so they do not belong in the block above.",
+            f"# The reviewer stays {at} because there is only one human here; the",
+            "# owner named on each line is the agent that may WRITE it.",
+        ]
+        for ap, owner, inside in carve_outs:
+            pat = to_codeowners_pattern(ap)
+            if pat in seen:
+                continue
+            seen.add(pat)
+            lines.append(f"{pat:<28}{at}   # written by {owner}, inside {inside}")
 
     lines.append("")
     return "\n".join(lines)
@@ -122,9 +189,10 @@ def main() -> int:
 
     if check:
         if old is None:
-            print(f"{OUT.relative_to(ROOT)} does not exist — run gen_codeowners.py", file=sys.stderr)
+            print(f"{OUT.relative_to(ROOT)} does not exist — regenerate it:", file=sys.stderr)
         else:
-            print(f"{OUT.relative_to(ROOT)} does not match OWNERS.yml — regenerate it", file=sys.stderr)
+            print(f"{OUT.relative_to(ROOT)} does not match OWNERS.yml — regenerate it:", file=sys.stderr)
+        print("    uv run --with pyyaml python tools/op-cli/gen_codeowners.py", file=sys.stderr)
         return 1
 
     OUT.parent.mkdir(parents=True, exist_ok=True)

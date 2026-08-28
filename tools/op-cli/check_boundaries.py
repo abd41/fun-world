@@ -151,9 +151,23 @@ def install() -> int:
     return 0
 
 
+class GitFailed(RuntimeError):
+    """A git command this check depends on did not succeed."""
+
+
 def _git(*args: str) -> str:
-    return subprocess.run(["git", *args], capture_output=True, text=True,
-                          cwd=ROOT).stdout.strip()
+    """Run git, and REFUSE to treat a failure as an empty answer.
+
+    This used to discard the return code and stderr, which made a `rev-list`
+    that failed indistinguishable from a range containing no commits -- so a
+    bad or unreachable BASE (a force-push, a shallow clone, a deleted ref)
+    produced "no commits in <range>" and exit 0. A guard that reports success
+    because its input was broken is the failure this whole job exists to catch.
+    """
+    r = subprocess.run(["git", *args], capture_output=True, text=True, cwd=ROOT)
+    if r.returncode != 0:
+        raise GitFailed("git " + " ".join(args) + " failed: " + r.stderr.strip())
+    return r.stdout.strip()
 
 
 def violations_for(agent: str, files: list[str], cfg: dict) -> list[tuple[str, str, str]]:
@@ -200,7 +214,18 @@ def check_range(rev_range: str) -> int:
         print("  Set `accounts.agent` in OWNERS.yml.", file=sys.stderr)
         return 1
 
-    shas = [ln for ln in _git("rev-list", "--no-merges", rev_range).splitlines() if ln]
+    try:
+        shas = [ln for ln in _git("rev-list", "--no-merges", rev_range).splitlines() if ln]
+    except GitFailed as why:
+        # Fail, do not skip. "I could not read the range" is not "the range is
+        # clean", and only one of those two should let a merge proceed.
+        print(f"REFUSING to run: {why}", file=sys.stderr)
+        print(f"  The range {rev_range!r} could not be read, so nothing was checked.",
+              file=sys.stderr)
+        print("  In CI this usually means a shallow clone — set fetch-depth: 0.",
+              file=sys.stderr)
+        return 1
+
     if not shas:
         print(f"boundary guard: no commits in {rev_range}")
         return 0
@@ -223,7 +248,7 @@ def check_range(rev_range: str) -> int:
                 "      Authored by the agent account with no FW-Agent trailer, so",
                 "      which agent wrote it cannot be determined and its boundary",
                 "      cannot be checked. Reinstall the hooks:",
-                "        python tools/op-cli/check_boundaries.py --install",
+                "        uv run --with pyyaml python tools/op-cli/check_boundaries.py --install",
             ]))
             print(f"  FAIL    {short}  {subject}  (no FW-Agent trailer)")
             continue
