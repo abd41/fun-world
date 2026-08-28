@@ -46,51 +46,71 @@ uv run python "$ROOT/tools/op-cli/check_constitution.py" --staged
 """
 
 
-def agent_identity() -> str:
-    """The account agents commit as.
+def agent_identities() -> set[str]:
+    """Every git author identity that means "an agent wrote this".
 
-    OWNERS.yml first, .env.local only as a fallback. The order matters and was
-    the wrong way round: .env.local is gitignored, so it does not exist in CI.
-    Read from there alone, this returned "" on every CI run -- and "" means
-    `pending_author_is_agent()` says False, which means every agent commit
-    would have been waved through as human work by a check whose entire job is
-    to tell them apart. Silently, and reporting success.
+    WHY A SET AND NOT ONE NAME. `accounts.agent` is a GitHub LOGIN; what a
+    commit carries is `%an`/`%ae`, local git config. Those are different kinds
+    of thing and they matched only because the bot happened to be configured
+    with user.name equal to its login. Nothing enforced that, so renaming the
+    bot would have turned this check off silently -- every agent commit reading
+    as human work, the guard reporting success.
 
-    A username is not a secret, so it belongs in the committed routing table.
-    The token stays in .env.local.
+    The identities are now declared in OWNERS.yml (`accounts.agent_git`) and
+    the invariant is enforced at commit time by main(): setting FW_AGENT while
+    authoring under an identity that is not in this set is REFUSED, because
+    such a commit would be invisible to the CI range check.
+
+    The login is included too, since that is what GitHub stamps as `%an` on a
+    squash commit.
     """
-    if name := accounts().get("agent", "").strip():
-        return name
-    envfile = ROOT / ".env.local"
-    if envfile.exists():
-        for line in envfile.read_text(encoding="utf-8").splitlines():
-            if line.strip().startswith("GH_AGENT_USER="):
-                return line.split("=", 1)[1].strip()
-    return ""
+    acc = accounts()
+    ids = {str(v).strip().casefold() for v in acc.get("agent_git", []) if str(v).strip()}
+    if login := str(acc.get("agent", "")).strip():
+        ids.add(login.casefold())
+    if not ids:
+        envfile = ROOT / ".env.local"
+        if envfile.exists():
+            for line in envfile.read_text(encoding="utf-8").splitlines():
+                if line.strip().startswith("GH_AGENT_USER="):
+                    if v := line.split("=", 1)[1].strip():
+                        ids.add(v.casefold())
+    return ids
 
 
-def pending_author_is_agent() -> bool:
-    """Is this commit being authored as the agent account?
+def author_is_agent(name: str, email: str) -> bool:
+    """Match on NAME or EMAIL, each compared whole.
 
-    Reads the author git will actually record, which is what `-c user.name`
-    sets -- so it reflects the commit about to be made rather than the repo's
-    default config.
+    Whole-value comparison matters: the human's email
+    (abdulrawoofali24@gmail.com) CONTAINS the agent's username (abdulRaw), so a
+    substring test marks every human commit as agent work. That false positive
+    was found once already by testing the human-on-an-agent-branch case; it is
+    not reintroduced here.
     """
-    identity = agent_identity()
-    if not identity:
-        return False
+    ids = agent_identities()
+    return name.strip().casefold() in ids or email.strip().casefold() in ids
 
-    # GIT_AUTHOR_IDENT is "Name <email> <timestamp> <tz>". Compare the NAME
-    # exactly -- a substring match over the whole string is wrong here, because
-    # the human's email (abdulrawoofali24@gmail.com) contains the agent's
-    # username (abdulRaw), so every human commit matched. Caught by testing the
-    # human-on-an-agent-branch case, which is exactly the false positive this
-    # check was chosen to avoid.
+
+def pending_author() -> tuple[str, str]:
+    """The (name, email) git will actually record for the commit being made.
+
+    Reads GIT_AUTHOR_IDENT, so `-c user.name=...` on this specific commit is
+    reflected rather than the repository default.
+    """
     out = subprocess.run(
         ["git", "var", "GIT_AUTHOR_IDENT"], capture_output=True, text=True, cwd=ROOT
     ).stdout.strip()
-    name = out.split("<", 1)[0].strip() if "<" in out else out
-    return name.casefold() == identity.casefold()
+    if "<" not in out:
+        return out.strip(), ""
+    name, _, rest = out.partition("<")
+    email = rest.split(">", 1)[0]
+    return name.strip(), email.strip()
+
+
+def pending_author_is_agent() -> bool:
+    """Is this commit being authored as the agent account?"""
+    name, email = pending_author()
+    return author_is_agent(name, email)
 
 
 def staged_files() -> list[str]:
@@ -205,13 +225,12 @@ def check_range(rev_range: str) -> int:
     when its config is missing.
     """
     cfg = load()
-    identity = agent_identity()
-    if not identity:
+    if not agent_identities():
         # Refuse rather than pass. With no identity every commit looks human
         # and this job would report success having checked nothing -- the exact
         # failure it exists to catch.
-        print("REFUSING to run: no agent account is configured.", file=sys.stderr)
-        print("  Set `accounts.agent` in OWNERS.yml.", file=sys.stderr)
+        print("REFUSING to run: no agent identity is configured.", file=sys.stderr)
+        print("  Set `accounts.agent` and `accounts.agent_git` in OWNERS.yml.", file=sys.stderr)
         return 1
 
     try:
@@ -234,10 +253,14 @@ def check_range(rev_range: str) -> int:
     failures: list[str] = []
     for sha in shas:
         author = _git("log", "-1", "--format=%an", sha)
+        email = _git("log", "-1", "--format=%ae", sha)
         subject = _git("log", "-1", "--format=%s", sha)
         short = sha[:9]
 
-        if author.casefold() != identity.casefold():
+        # Name OR email. Matching on the name alone was fragile: it compared a
+        # GitHub login against local git config and worked only because the two
+        # had been set equal by hand.
+        if not author_is_agent(author, email):
             print(f"  human   {short}  {subject}")
             continue
 
@@ -304,6 +327,33 @@ def main() -> int:
     if not files:
         return 0
 
+    if agent and not pending_author_is_agent():
+        # THE INVARIANT THE CI CHECK DEPENDS ON, enforced here rather than hoped
+        # for. Layer 3 decides "is this agent work?" from the commit's author.
+        # A commit that declares FW_AGENT but is authored under an undeclared
+        # identity would sail past it as human work -- the guard reporting
+        # success having checked nothing, which is the whole failure class this
+        # repo keeps rediscovering.
+        #
+        # Refusing here means the coincidence that made it work (the bot's
+        # user.name happening to equal its GitHub login) is now a rule.
+        name, email = pending_author()
+        E = sys.stderr
+        print(file=E)
+        print(f"REFUSED: FW_AGENT={agent} but the author is not a declared agent identity.", file=E)
+        print(file=E)
+        print(f"  author:   {name} <{email}>", file=E)
+        print(f"  declared: {', '.join(sorted(agent_identities()))}", file=E)
+        print(file=E)
+        print("  A commit authored this way is invisible to the CI boundary check:", file=E)
+        print("  it would be read as human work and never checked at all.", file=E)
+        print(file=E)
+        print("  Either commit under the agent identity:", file=E)
+        print("      git -c user.name=<name> -c user.email=<email> commit ...", file=E)
+        print("  or add this identity to `accounts.agent_git` in OWNERS.yml.", file=E)
+        print(file=E)
+        return 1
+
     if not agent:
         # An agent that forgets FW_AGENT would get an unrestricted human
         # commit, which is the one way left to write outside a boundary by
@@ -317,7 +367,7 @@ def main() -> int:
         if pending_author_is_agent():
             print(
                 f"\nREFUSED: committing as the agent account with no FW_AGENT set.\n\n"
-                f"  Author is '{agent_identity()}', so this is agent work — but the\n"
+                f"  Author is '{pending_author()[0]}', so this is agent work — but the\n"
                 "  boundary guard was about to wave it through as a human commit,\n"
                 "  which would let it write anywhere.\n\n"
                 "  Set the agent explicitly:\n"
